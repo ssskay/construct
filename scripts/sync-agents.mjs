@@ -137,8 +137,9 @@ if (validationErrors.length > 0) {
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const COMPRESS_PERSONAS = process.argv.includes("--compress-personas");
-const lockPath = path.join(root, ".cx", "sync.lock");
-const stagingDir = path.join(root, ".cx", "sync-staging");
+const projectDir = process.argv.includes("--project") ? process.cwd() : null;
+const lockPath = path.join(projectDir || root, ".cx", "sync.lock");
+const stagingDir = path.join(projectDir || root, ".cx", "sync-staging");
 
 /** Acquire an exclusive lockfile. Aborts if already held by a live process. */
 function acquireLock() {
@@ -191,7 +192,7 @@ function writeFile(file, content) {
   }
 
   // Two-phase: write to staging, commit later.
-  const rel = path.relative(root, file);
+  const rel = path.relative(projectDir || root, file);
   const stagingPath = path.join(stagingDir, rel);
   mkdirp(path.dirname(stagingPath));
   fs.writeFileSync(stagingPath, stamped);
@@ -1104,7 +1105,6 @@ function syncCommands(targetDir = null) {
 
 // --- Main ---
 
-const projectDir = process.argv.includes("--project") ? process.cwd() : null;
 const entries = buildEntries();
 
 if (COMPRESS_PERSONAS) {
