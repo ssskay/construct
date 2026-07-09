@@ -4,6 +4,10 @@ All notable changes to Construct are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+
+- `package.json`: the `files` whitelist shipped only `scripts/sync-specialists.mjs`, but `bin/construct` dispatches to five more scripts — so for every npm consumer, `construct review legacy`, `construct optimize`, `seed-traces`, `lint:templates`, and the sync-time workflow-defs drift check crashed with `MODULE_NOT_FOUND` (the drift check's non-zero exit was then misreported as "workflow-defs.mjs drift detected" on every `construct sync`). All CLI-dispatched scripts now ship; each imports only node builtins and `lib/env-config.mjs`, which was already packaged. New gate `tests/published-scripts.test.mjs` extracts script references from the CLI source and fails if any referenced script is missing from the whitelist.
+
 ## [1.5.2] - 2026-07-09
 
 ### Added

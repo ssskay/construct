@@ -31,6 +31,11 @@
     "config/**",
     "vendor/**",
     "scripts/sync-specialists.mjs",
+    "scripts/check-workflow-defs-drift.mjs",
+    "scripts/lint-commits-pr.mjs",
+    "scripts/optimize.mjs",
+    "scripts/review.mjs",
+    "scripts/seed-traces.mjs",
     "README.md",
     ".env.example"
   ],
