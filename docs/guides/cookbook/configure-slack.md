@@ -3,7 +3,7 @@ title: Configure Slack
 description: "Wire Slack as a Construct provider: bot tokens, channels, capability scopes."
 ---
 
-Construct can post snapshots and roadmap summaries to Slack channels, and receive slash commands from Slack.
+Construct can post snapshots and roadmap summaries to Slack channels. Monitoring itself is poll-based, not webhook-driven — see [ADR-0061 amendment](../../decisions/adr/0061-lmcp-p1-embed-capability-schema-runtime-placement.md#amendment-2026-07-09--monitoring-is-poll-based-by-design-webhook-is-a-declared-unimplemented-capability-slot) for the architectural stance and why the slash-command endpoint below is not yet live.
 
 ## Step 1: Create a Slack app
 
@@ -20,13 +20,9 @@ Under **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
 - `chat:write`
 - `commands`
 
-## Step 3: Enable slash commands (optional)
+## Step 3: Slash commands (not yet available)
 
-Under **Slash Commands**, add `/construct` pointing at your server:
-
-```
-https://your-construct-host/webhooks/slack
-```
+The Slack app configuration flow allows registering a **Slash Commands** endpoint, but Construct does not yet run an inbound HTTP receiver for it — there is no server behind `/webhooks/slack` in this codebase today. Skip this step until inbound webhook receiving lands; see the ADR-0061 amendment linked above for what would justify building one.
 
 ## Step 4: Install to workspace
 

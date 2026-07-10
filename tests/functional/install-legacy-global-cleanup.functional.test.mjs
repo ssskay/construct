@@ -104,11 +104,11 @@ name = "Construct"
   fs.mkdirSync(path.join(home, '.claude', 'projects', 'Users-test-construct'), { recursive: true });
 }
 
-test('--cleanup-legacy-global with project scope removes only legacy global Construct state', () => {
+test('--cleanup-legacy-global with project footprint removes only legacy global Construct state', () => {
   const home = freshHome();
   seedLegacyHome(home);
 
-  const res = spawnSync('node', [BIN, 'install', '--scope=project', '--cleanup-legacy-global'], {
+  const res = spawnSync('node', [BIN, 'install', '--footprint=project', '--cleanup-legacy-global'], {
     encoding: 'utf8',
     timeout: 30_000,
     env: { ...process.env, HOME: home },
@@ -116,7 +116,7 @@ test('--cleanup-legacy-global with project scope removes only legacy global Cons
 
   assert.equal(res.status, 0, `expected exit 0, got ${res.status} — stderr: ${res.stderr}`);
   assert.match(res.stdout, /Legacy global cleanup: removed/i);
-  assert.match(res.stdout, /scope: project/i);
+  assert.match(res.stdout, /footprint: project/i);
 
   assert.equal(fs.existsSync(path.join(home, '.construct')), false, 'legacy ~/.construct must be removed');
   assert.equal(fs.existsSync(path.join(home, '.local', 'share', 'construct')), false, 'legacy data dir must be removed');

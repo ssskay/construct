@@ -5,6 +5,8 @@ description: Continuous monitoring + snapshot production while you work.
 
 Embed mode is a background daemon that watches what you feed Construct and does what needs doing: polling providers, maintaining docs, updating the roadmap, and routing work through the right approval gates. You configure targets and roles; Construct handles the rest.
 
+Monitoring is poll-based by design — there is no inbound webhook receiver. See the [ADR-0061 amendment](../../decisions/adr/0061-lmcp-p1-embed-capability-schema-runtime-placement.md#amendment-2026-07-09--monitoring-is-poll-based-by-design-webhook-is-a-declared-unimplemented-capability-slot) for why, what the declared `webhook` provider capability is for today, and the criteria that would justify building a real receiver.
+
 ## Before you start
 
 You need at least one provider configured in `~/.config/construct/config.env`. Jira and GitHub are the most common starting points.

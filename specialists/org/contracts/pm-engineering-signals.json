@@ -1,0 +1,53 @@
+{
+  "id": "pm-engineering-signals",
+  "producer": "cx-product-manager",
+  "consumer": "user",
+  "trigger": {
+    "intent": ["implementation"],
+    "workCategory": "deep"
+  },
+  "input": {
+    "shape": "bound-snapshot-slice",
+    "mustContain": [
+      "snapshotSections"
+    ]
+  },
+  "output": {
+    "shape": "engineering-signals-digest",
+    "mustContain": [
+      "prs",
+      "issues",
+      "stalledPrs",
+      "unlinkedIssues",
+      "provenance",
+      "summary"
+    ]
+  },
+  "preconditions": [
+    "The product-manager specialist's bound provider snapshot has been sliced (GitHub + Jira sections present or explicitly empty)",
+    "Provider bindings and filters have been enforced at read time before the slice reaches analysis"
+  ],
+  "postconditions": [
+    {
+      "id": "pm-engineering-signals-pc-0-every-stalled-pr-finding-cites-the-pr-id",
+      "description": "Every stalled-pr finding cites the pull request id (owner/repo#number) and its last-updated timestamp",
+      "postconditionType": "advisory"
+    },
+    {
+      "id": "pm-engineering-signals-pc-1-every-unlinked-issue-finding-cites-the",
+      "description": "Every unlinked-in-progress finding cites the Jira issue key and its status",
+      "postconditionType": "advisory"
+    },
+    {
+      "id": "pm-engineering-signals-pc-2-no-load-bearing-claim-is-present",
+      "description": "No load-bearing claim is present without a source id; unknowns are marked, never invented",
+      "postconditionType": "advisory"
+    },
+    {
+      "id": "pm-engineering-signals-pc-3-no-provider-write-executes-this-preset",
+      "description": "No provider write executes: this preset is artifact-only and proposes no writeIntent",
+      "postconditionType": "advisory"
+    }
+  ],
+  "description": "Engineering-signals digest produced by the product-manager specialist over its bound GitHub + Jira snapshot: watched pull requests and issues, stalled-PR findings, and unlinked in-progress issue findings."
+}

@@ -55,7 +55,7 @@
       "postconditionType": "executable"
     }
   ],
-  "description": "",
+  "description": "Legal/compliance is a participation dimension bound to cx-security, not a 13th roster role (ADR-0070, construct-95phc.1). This trigger's riskFlags match compliance/privacy/licensing detection in lib/orchestration/classification.mjs but are not yet evaluated by routeRequest/invokeWorkflow/runConstructArtifactLoop, so the pass is advisory metadata until the cdsp participation pipeline (construct-pteo2) wires an evaluator against these three insertion points.",
   "teamBoundary": {
     "crosses": true,
     "producerTeam": "engineering-group",

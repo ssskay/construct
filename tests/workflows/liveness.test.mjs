@@ -124,7 +124,7 @@ test('all builtin manifests pass liveness with zero violations', () => {
   const dirs = resolveWorkflowManifestDirs();
   const { manifests, errors } = loadWorkflowManifestsFromDir(dirs.builtin);
   assert.equal(errors.length, 0, `unexpected schema errors: ${errors.join(', ')}`);
-  assert.equal(manifests.length, 14, `expected 14 builtin manifests, got ${manifests.length}`);
+  assert.equal(manifests.length, 15, `expected 15 builtin manifests, got ${manifests.length}`);
 
   const { violations } = checkWorkflowLiveness(manifests, { rootDir: ROOT_DIR });
   assert.deepEqual(violations, [], `expected zero liveness violations, got: ${JSON.stringify(violations)}`);

@@ -1,0 +1,18 @@
+{
+  "id": "pm-repos",
+  "version": "1.0.0",
+  "type": "embed",
+  "defaultApprovalMode": "proposal-only",
+  "compatVersion": 1,
+  "owner": "construct-core",
+  "description": "PM repos preset: the product-manager specialist watches bound engineering repos (GitHub) and Jira issues directly, flags stalled pull requests and unlinked issues, and emits an engineering-signals digest. Artifact-only — proposes no provider write.",
+  "embed": {
+    "specialist": "cx-product-manager",
+    "providerBindings": ["github", "atlassian-jira"],
+    "framework": "cx-pm-value-tradeoff",
+    "outputContract": "pm-engineering-signals",
+    "proposalAuthority": "propose-only",
+    "runtime": "auto",
+    "cadence": { "every": "PT24H" }
+  }
+}

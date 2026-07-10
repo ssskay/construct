@@ -1,8 +1,11 @@
 version: 2
 updates:
-  # npm dependencies
+  # npm dependencies. target-branch follows the environment-promotion flow
+  # (work integrates on staging, main is promotion-only) — dependabot PRs into
+  # main sat unmergeable and were batch-closed on 2026-07-07.
   - package-ecosystem: npm
     directory: /
+    target-branch: staging
     schedule:
       interval: weekly
       day: monday
@@ -23,6 +26,7 @@ updates:
   # GitHub Actions — keeps action pins from drifting
   - package-ecosystem: github-actions
     directory: /
+    target-branch: staging
     schedule:
       interval: weekly
       day: monday

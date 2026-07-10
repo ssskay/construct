@@ -594,6 +594,10 @@ async function cmdDoctor() {
   const wantsFixMigrateState = wantsFixAll || args.includes('--fix-migrate-state');
 
   const checks = [];
+  // Set inside the worker-backend/web-capability readiness check below;
+  // printed as the last line of doctor's output regardless of pass/fail so a
+  // scrolled-past health-check table never buries the EXECUTE-vs-PLAN signal.
+  let firstRunReadinessLine = null;
   const { DOCTOR_STATES } = await import('../lib/doctor/diagnosis.mjs');
   const add = (label, pass, optional = false, failureState = pass ? DOCTOR_STATES.healthy : null) => checks.push({ label, pass, optional, failureState });
   const { isConstructSourceCheckout } = await import('../lib/doctor/source-checkout.mjs');
@@ -825,7 +829,7 @@ async function cmdDoctor() {
   // actually get. Both lines are advisory only; the resolved values never
   // fail the gate.
   try {
-    const { buildOrchestrationReadiness } = await import('../lib/orchestration/readiness.mjs');
+    const { buildOrchestrationReadiness, formatFirstRunExecutionReadiness } = await import('../lib/orchestration/readiness.mjs');
     const orchReadiness = buildOrchestrationReadiness({}, { env: process.env, cwd });
     const backendNote = orchReadiness.workerBackend === 'inline'
       ? 'inline (prepare-only — no specialist LLM reasoning runs; set orchestration.workerBackend=provider for real execution)'
@@ -836,6 +840,8 @@ async function cmdDoctor() {
       ? 'unavailable (set WEB_SEARCH_URL for governed mode, or CONSTRUCT_ORCHESTRATION_WEB_DELEGATE=1 to delegate to a tool-capable host)'
       : orchReadiness.webMode;
     add(`Web capability: ${webNote}`, true, true);
+
+    firstRunReadinessLine = formatFirstRunExecutionReadiness(orchReadiness);
   } catch (err) {
     add(`Worker backend / web capability check failed: ${err.message}`, false, true);
   }
@@ -1040,7 +1046,7 @@ async function cmdDoctor() {
       const missing = referenced.filter((scriptPath) => !fs.existsSync(scriptPath));
       if (referenced.length > 0 && missing.length > 0) {
         add(
-          `Claude Stop hooks broken: ${missing.length} hook${missing.length === 1 ? '' : 's'} do not resolve. Re-run \`construct install --scope=user\` (symlinks ${ROOT_DIR}/lib → ${installRoot.replace(/\/hooks$/, '')}).`,
+          `Claude Stop hooks broken: ${missing.length} hook${missing.length === 1 ? '' : 's'} do not resolve. Re-run \`construct install --footprint=user\` (symlinks ${ROOT_DIR}/lib → ${installRoot.replace(/\/hooks$/, '')}).`,
           false,
           false,
         );
@@ -1091,6 +1097,33 @@ async function cmdDoctor() {
     }
   } catch (err) {
     add(`Resource budget check failed: ${err.message}`, false, true);
+  }
+
+  // construct-95phc.3: cumulative spend must be re-verifiable from the real
+  // ledgers, not a placeholder — cost-ledger.mjs's USD/day figures and
+  // unattended-budget.mjs's token/day figures for daemon-originated spend.
+  try {
+    const { getTotalDailySpend, totalBudget, enforcementActive } = await import('../lib/cost-ledger.mjs');
+    const { unattendedSpendSummary } = await import('../lib/policy/unattended-budget.mjs');
+    const total = getTotalDailySpend();
+    const cap = totalBudget();
+    const pct = cap > 0 ? Math.round((total.costUsd / cap) * 100) : 0;
+    add(
+      `Cumulative spend today: $${total.costUsd.toFixed(4)} / $${cap.toFixed(2)} cap (${pct}%) — enforcement ${enforcementActive() ? 'on' : 'advisory'}`,
+      total.costUsd <= cap,
+      true,
+    );
+    const unattended = unattendedSpendSummary(process.cwd());
+    if (unattended.length) {
+      for (const row of unattended) {
+        const overCap = row.cap > 0 && row.tokensSpent > row.cap;
+        add(`Unattended spend — ${row.capability}: ${row.tokensSpent} / ${row.cap || 0} tokens today`, !overCap, true);
+      }
+    } else {
+      add('Unattended spend: no daemon-originated LLM spend recorded today', true, true);
+    }
+  } catch (err) {
+    add(`Cumulative spend check failed: ${err.message}`, false, true);
   }
 
   // Pricing-catalog freshness + divergence are not surfaced in doctor output.
@@ -1622,6 +1655,10 @@ async function cmdDoctor() {
 
   println('');
   println(`Results: ${okCount} passed, ${warnCount} warnings, ${failCount} failed`);
+  if (firstRunReadinessLine) {
+    println('');
+    println(firstRunReadinessLine);
+  }
   if (failCount > 0) process.exit(1);
 }
 
@@ -1886,10 +1923,10 @@ async function cmdMigrate(args) {
 }
 
 async function cmdReview(args) {
-  fs.mkdirSync(path.join(doctorRoot(), 'performance-reviews'), { recursive: true });
   const sub = args[0];
 
   if (!sub || sub === 'run') {
+    fs.mkdirSync(path.join(doctorRoot(), 'performance-reviews'), { recursive: true });
     const { runGenerator } = await import('../lib/performance/generate.mjs');
     const result = await runGenerator({ env: process.env });
     info(`Wrote ${result.filename} · ${result.agentCount} agent${result.agentCount === 1 ? '' : 's'}`);
@@ -1898,6 +1935,7 @@ async function cmdReview(args) {
   }
 
   if (sub === 'legacy') {
+    fs.mkdirSync(path.join(doctorRoot(), 'performance-reviews'), { recursive: true });
     if (!ENV.CONSTRUCT_TELEMETRY_PUBLIC_KEY || !ENV.CONSTRUCT_TELEMETRY_SECRET_KEY) {
       errorln('Error: CONSTRUCT_TELEMETRY_PUBLIC_KEY and CONSTRUCT_TELEMETRY_SECRET_KEY must be set.');
       errorln('Configure telemetry credentials in ~/.construct/config.env or .env.');
@@ -1907,7 +1945,22 @@ async function cmdReview(args) {
     return;
   }
 
-  errorln('Usage: construct review [run|legacy]');
+  if (sub === 'pr') {
+    const { runReviewPrCli } = await import('../lib/review-pr.mjs');
+    const { exitCode, error, result, json, outputPath } = runReviewPrCli(args.slice(1));
+    if (error) {
+      errorln(error);
+      process.exit(exitCode);
+    }
+    if (outputPath) {
+      info(`Wrote ${outputPath} · ${result.findings.length} finding${result.findings.length === 1 ? '' : 's'}`);
+    } else {
+      println(json);
+    }
+    return;
+  }
+
+  errorln('Usage: construct review [run|legacy|pr --base=<ref> [--output=<file>]]');
   process.exit(1);
 }
 
@@ -4334,7 +4387,13 @@ async function cmdOrchestrate(args) {
         const env = await res.json();
         if (!res.ok) { errorln(`Daemon error (${res.status}): ${env.error || 'unknown'}`); process.exit(1); }
         if (wantsJson) { println(JSON.stringify(env.data, null, 2)); return; }
-        println(`Run ${env.data.runId} started on ${base} — ${env.data.status} · executionMode=${env.data.execution?.executionMode}. Poll: construct orchestrate status ${env.data.runId} --remote`);
+        // AP5.4: the remote payload is subject to the same honest terminal-status
+        // taxonomy as a local run (see the `status --remote` branch below) — shape
+        // it before printing so a prepare-only remote run reports the same way.
+        const { shapeRun: shapeRemoteRun } = await import('../lib/mcp/tools/orchestration-run.mjs');
+        const remoteShaped = shapeRemoteRun(env.data);
+        println(`Run ${env.data.runId} started on ${base} — ${remoteShaped.status} · executionMode=${env.data.execution?.executionMode}. Poll: construct orchestrate status ${env.data.runId} --remote`);
+        if (remoteShaped.message) println(`  ${remoteShaped.message}`);
         return;
       }
       if (sub === 'status') {
@@ -4429,6 +4488,10 @@ async function cmdOrchestrate(args) {
     const shaped = shapeRun(run);
     println(`Run ${run.runId} — ${shaped.status} · executionMode=${shaped.executionMode} · backend=${run.workerBackend} · hostRole=${run.hostRole}`);
     if (shaped.degraded) println(`  degraded: ${shaped.degradationReason}`);
+    // construct-vzg2i.2: shapeRun's message field carries the loud prepare-only
+    // statement + exact next step so it never sits only in run metadata a
+    // caller has to know to check.
+    if (shaped.message) println(`  ${shaped.message}`);
     if (run.tasks.length) println(`  tasks: ${run.tasks.map((t) => `${t.role}(${t.status})`).join(' → ')}`);
     else println('  tasks: none (no Construct-owned specialist sequence for this execution mode)');
     if (run.contextBindings?.length) {
@@ -6788,6 +6851,10 @@ const handlers = new Map([
   ['config', cmdConfig],
   ['approvals', cmdApprovals],
   ['sources', cmdSources],
+  ['monitor', async (args) => {
+    const { runMonitorCli } = await import('../lib/monitor-cli.mjs');
+    return runMonitorCli(args, { cwd: process.cwd(), rootDir: ROOT_DIR, homeDir: HOME });
+  }],
   ['templates', cmdTemplates],
   ['intake', cmdIntake],
   ['recommendations', cmdRecommendations],
@@ -7550,12 +7617,13 @@ const handlers = new Map([
      if (typeof code === 'number' && code !== 0) process.exit(code);
    }],
    // `graph` carries two disjoint subcommand families: the living dependency
-   // graph (build/stat/query/validate/impacted/missing-tests/missing-docs/
-   // stale/dependencies/providers/surfaces/explain → lib/graph/cli.mjs) and the
-   // intake task graph (list/show/from-intake/status/recommend → cmdGraph).
+   // graph (build/build-targets/stat/query/validate/impacted/missing-tests/
+   // missing-docs/stale/dependencies/providers/surfaces/explain →
+   // lib/graph/cli.mjs) and the intake task graph (list/show/from-intake/
+   // status/recommend → cmdGraph).
    ['graph', async (args) => {
      const DEPENDENCY_GRAPH_SUBCOMMANDS = new Set([
-       'build', 'stat', 'query', 'validate', 'impacted',
+       'build', 'build-targets', 'stat', 'query', 'validate', 'impacted',
        'missing-tests', 'missing-docs', 'stale', 'dependencies', 'providers', 'surfaces', 'explain', 'owasp',
      ]);
      if (DEPENDENCY_GRAPH_SUBCOMMANDS.has(args[0])) {

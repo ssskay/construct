@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://construct.dev/schemas/participation-rules.schema.json",
+  "title": "Construct Participation Rules",
+  "description": "Registry-declared condition -> recruitment rules for condition-driven specialist/team participation (construct-pteo2, ADR-0070). A participationRules array lives alongside a registry entry (specialist, team, or a project .cx/specialists/ overlay per lib/orchestration/routing-tables.mjs's existing overlay precedent) and is resolved by the recruit stage of the pipeline ADR-0070 defines. Superset of construct-ca4's WATCHERS/evaluateWatchConditions mechanism (lib/orchestration/routing-tables.mjs): a watchCondition names a boolean predicate over requestSignals and is one valid form of `when`; this schema additionally carries role, gate, and enforcement scope, which ca4's mechanism has no field for. Enforcement (gate: enforced) is never implied by this schema alone — it is only realized when the recruiting team's own registry entry (schemas/scope.schema.json's team.decisionRights) names the same decisionRight in enforcementScope.decisionRight, per ADR-0070's opt-in-per-team decision.",
+  "type": "object",
+  "required": ["schemaVersion", "rules"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "minimum": 1 },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/participationRule" }
+    }
+  },
+  "$defs": {
+    "participationRule": {
+      "type": "object",
+      "description": "One when(signals) -> recruit(specialists|teams) rule. `id` must be unique within the owning registry entry's rules array; duplicate ids across entries are a registry-assembly error, matching the existing duplicate-ownership check for events/docs in lib/orchestration/routing-tables.mjs.",
+      "required": ["id", "when", "recruit", "role", "gate"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,60}$",
+          "description": "Stable identifier for this rule, referenced in trace/telemetry output and by decisionRights bindings."
+        },
+        "dimension": {
+          "$ref": "#/$defs/dimension",
+          "description": "Optional classification of what concern this rule recruits for. `legal-compliance` is a first-class dimension (ADR-0070) bound structurally to cx-security via the legalComplianceBinding conditional below — it is not a 13th role."
+        },
+        "when": { "$ref": "#/$defs/whenCondition" },
+        "recruit": { "$ref": "#/$defs/recruitTarget" },
+        "role": {
+          "enum": ["author", "reviewer", "advisor"],
+          "description": "The recruited participant's function on the artifact this run produces. Fixed 3-value enum — adding a role here is an ADR-0070 amendment, not a per-rule choice."
+        },
+        "gate": {
+          "enum": ["advisory", "enforced"],
+          "default": "advisory",
+          "description": "advisory: recruitment and sign-off are recorded but never block the run. enforced: a missing sign-off from this rule's recruited participant blocks release. Default is advisory (ADR-0070, binding user decision) — enforced requires enforcementScope naming a decisionRight the recruiting team's own registry entry (schemas/scope.schema.json team.decisionRights) actually declares; the schema-level if/then below makes this a structural requirement, not prose."
+        },
+        "enforcementScope": {
+          "type": "object",
+          "description": "Required when gate=enforced. Names the exact team + decisionRight whose registry entry must list decisionRight in its decisionRights array (schemas/scope.schema.json) for this rule's enforcement to take effect — enforcement is opt-in per team, never global.",
+          "required": ["team", "decisionRight"],
+          "additionalProperties": false,
+          "properties": {
+            "team": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$" },
+            "decisionRight": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$" }
+          }
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Human-readable justification surfaced in trace output, matching watcherToReason in lib/orchestration/routing-tables.mjs."
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "gate": { "const": "enforced" } }, "required": ["gate"] },
+          "then": { "required": ["enforcementScope"] }
+        },
+        {
+          "$comment": "Structural enforcement of the no-13th-role decision (ADR-0070): a rule whose dimension is legal-compliance must recruit cx-security as one of its specialists. This is checked here, not left to prose, so a rule that invents a standalone legal/compliance recruit target fails schema validation.",
+          "if": { "properties": { "dimension": { "const": "legal-compliance" } }, "required": ["dimension"] },
+          "then": {
+            "properties": {
+              "recruit": {
+                "properties": {
+                  "specialists": {
+                    "type": "array",
+                    "contains": { "const": "cx-security" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dimension": {
+      "enum": ["legal-compliance", "security", "quality", "product", "operations", "architecture"],
+      "description": "Concern the rule recruits for. Not a role — a dimension is bound to an existing roster role (e.g. legal-compliance -> cx-security); it never introduces a new specialist type."
+    },
+    "whenCondition": {
+      "type": "object",
+      "description": "The condition side of when(signals) -> recruit(...). `watchCondition` names a predicate already registered in lib/orchestration/routing-tables.mjs's WATCHERS map (the ca4 mechanism this schema supersedes); `signalExpr` is the ADR-0070 generalization for a signal not yet named as a watchCondition. At least one of the two is required so every rule is traceable to a concrete evaluable condition.",
+      "anyOf": [
+        { "required": ["watchCondition"] },
+        { "required": ["signalExpr"] }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "watchCondition": {
+          "type": "string",
+          "description": "Name of a predicate over requestSignals, e.g. one of ca4's 5 shipped watchers (lib/orchestration/routing-tables.mjs:29-39: high-ambiguity-deep-work, visual-or-ui-risk, auth-payments-non-narrow, architecture-without-metric, wide-blast-radius) or a signal added under construct-pteo2.3's externalized signal set."
+        },
+        "signalExpr": {
+          "type": "string",
+          "description": "A boolean expression over the requestSignals shape (lib/orchestration-policy.mjs), evaluated the same way WATCHERS predicates are today. Free-form now; construct-pteo2.3 is scoped to define the expression grammar and the full externalized signal vocabulary this references."
+        }
+      }
+    },
+    "recruitTarget": {
+      "type": "object",
+      "description": "What gets pulled onto the field when `when` is true. At least one of specialists/teams is required.",
+      "anyOf": [
+        { "required": ["specialists"] },
+        { "required": ["teams"] }
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "specialists": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rosterSpecialist" }
+        },
+        "teams": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,40}$" }
+        }
+      }
+    },
+    "rosterSpecialist": {
+      "enum": [
+        "cx-architect",
+        "cx-data-analyst",
+        "cx-debugger",
+        "cx-designer",
+        "cx-engineer",
+        "cx-operations",
+        "cx-orchestrator",
+        "cx-product-manager",
+        "cx-qa",
+        "cx-researcher",
+        "cx-reviewer",
+        "cx-security"
+      ],
+      "description": "Fixed 12-role roster (specialists/org/specialists/*.json). A rule can only recruit an existing role — this schema has no mechanism for declaring a 13th, per this repo's CLAUDE.md invariant that a profile selects flows + skill emphasis over the fixed roster and does not invent new roles or departments."
+    }
+  }
+}

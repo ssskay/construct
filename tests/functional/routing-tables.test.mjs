@@ -174,12 +174,13 @@ test('registry covers the full set of routable doc artifact types', () => {
   assert.equal(docs.length, Object.keys(EXPECTED_DOCS).length);
 });
 
-test('all five watch conditions are bound to a specialist', () => {
+test('all six watch conditions are bound to a specialist', () => {
   const watchers = knownWatchers();
   assert.deepEqual(watchers.sort(), [
     'architecture-without-metric',
     'auth-payments-non-narrow',
     'high-ambiguity-deep-work',
+    'named-cost-constraint',
     'visual-or-ui-risk',
     'wide-blast-radius',
   ].sort());

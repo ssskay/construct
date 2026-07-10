@@ -1,36 +1,18 @@
 /**
  * tests/functional/w5-self-loop.functional.test.mjs —
  *
- * Three self-loop closures: daemon safeguard contract, intake daemon
- * end-to-end (drop a file into inbox/, daemon emits packet within one
- * tick), rule-verifier intent-based approval classification.
+ * Two self-loop closures: daemon safeguard contract, rule-verifier
+ * intent-based approval classification.
  */
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, readdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createDaemon, classifyPacket, readHeartbeat } from '../../lib/daemons/contract.mjs';
-import { buildIntakeDaemon, processInboxFile } from '../../lib/intake/daemon.mjs';
 import { verifyTranscript, classifyApproval, findConsequentialActions } from '../../lib/hooks/rule-verifier.mjs';
 import { rmTmpDir } from '../helpers/cleanup.mjs';
-
-// buildIntakeDaemon() computes its heartbeat path eagerly at construction
-// time via resolveStatePath(cwd,'runtime','intake-daemon.heartbeat') —
-// machine-scoped state root (ADR-0066), reading CX_HOME_OVERRIDE from real
-// process.env directly. Pin it for the whole file so merely building a
-// daemon never writes into the real developer machine's
-// ~/.construct/projects/.
-
-const homeOverride = mkdtempSync(join(tmpdir(), 'construct-w5-home-'));
-const prevHomeOverride = process.env.CX_HOME_OVERRIDE;
-process.env.CX_HOME_OVERRIDE = homeOverride;
-test.after(() => {
-  try { rmTmpDir(homeOverride); } catch {}
-  if (prevHomeOverride === undefined) delete process.env.CX_HOME_OVERRIDE;
-  else process.env.CX_HOME_OVERRIDE = prevHomeOverride;
-});
 
 function freshCwd() {
   const cwd = mkdtempSync(join(tmpdir(), 'construct-w5-'));
@@ -132,75 +114,6 @@ test('classifyPacket routes past-TTL packets to dead-letter', () => {
 test('classifyPacket routes retry-exhausted packets to dead-letter', () => {
   const tired = { firstSeenAt: new Date().toISOString(), attempts: 5 };
   assert.equal(classifyPacket(tired, { maxAttempts: 3 }).route, 'dead-letter');
-});
-
-// ── Intake daemon end-to-end ────────────────────────────────────────────────
-
-test('processInboxFile classifies and writes a packet to .cx/intake/pending/', async () => {
-  const { cwd, cleanup } = freshCwd();
-  try {
-    const inbox = join(cwd, 'inbox');
-    mkdirSync(inbox, { recursive: true });
-    const sourceFile = join(inbox, 'sample-bug-report.txt');
-    writeFileSync(sourceFile, 'When I press the submit button it does nothing on Safari.');
-
-    const result = await processInboxFile(sourceFile, {
-      cwd,
-      classify: async () => ({ intakeType: 'bug-report', rdStage: 'triage', primaryOwner: 'debugger', recommendedAction: 'diagnose' }),
-    });
-
-    assert.equal(result.didWork, true);
-    assert.equal(result.route, 'pending');
-    const pendingFiles = readdirSync(join(cwd, '.cx', 'intake', 'pending'));
-    const packetFile = pendingFiles.find((f) => f.endsWith('.json'));
-    assert.ok(packetFile, 'expected a pending packet file');
-    const packet = JSON.parse(readFileSync(join(cwd, '.cx', 'intake', 'pending', packetFile), 'utf8'));
-    assert.equal(packet.triage.intakeType, 'bug-report');
-  } finally { cleanup(); }
-});
-
-test('intake daemon enqueues only complete top-level files, ignoring .staging/ and dotfiles', async () => {
-  const { cwd, cleanup } = freshCwd();
-  try {
-    const inbox = join(cwd, 'inbox');
-    mkdirSync(join(inbox, '.staging'), { recursive: true });
-
-    // A complete top-level drop, a file a writer is still staging, and a
-    // dotfile. Only the first should ever reach a pending packet.
-
-    writeFileSync(join(inbox, 'real-drop.txt'), 'A complete, renamed-in signal.');
-    writeFileSync(join(inbox, '.staging', 'half-written.txt'), 'still assembling');
-    writeFileSync(join(inbox, '.in-progress.txt'), 'dotfile, not a drop');
-
-    const daemon = buildIntakeDaemon({
-      cwd,
-      intervalMs: 5,
-      classify: async () => ({ intakeType: 'note', rdStage: 'triage', primaryOwner: 'product-manager', recommendedAction: 'review' }),
-    });
-    await Promise.race([
-      daemon.run(),
-      new Promise((r) => setTimeout(() => { daemon.stop(); r({ reason: 'timeout' }); }, 300)),
-    ]);
-
-    const pendingDir = join(cwd, '.cx', 'intake', 'pending');
-    const packets = existsSync(pendingDir) ? readdirSync(pendingDir).filter((f) => f.endsWith('.json')) : [];
-    assert.equal(packets.length, 1, `exactly one packet from the top-level drop; got ${packets.length}`);
-    const packet = JSON.parse(readFileSync(join(pendingDir, packets[0]), 'utf8'));
-    assert.ok(packet.sourcePath.endsWith('real-drop.txt'), 'the staged/dotfile files must not be enqueued');
-  } finally { cleanup(); }
-});
-
-test('intake daemon idle-shuts down when inbox is empty', async () => {
-  const { cwd, cleanup } = freshCwd();
-  try {
-    const daemon = buildIntakeDaemon({ cwd, intervalMs: 5 });
-    daemon.stop();
-    const result = await Promise.race([
-      daemon.run(),
-      new Promise((r) => setTimeout(() => r({ stopped: true, reason: 'timeout' }), 200)),
-    ]);
-    assert.ok(['idle', 'requested', 'timeout'].includes(result.reason || ''), `expected idle/requested/timeout, got ${result.reason}`);
-  } finally { cleanup(); }
 });
 
 // ── Rule verifier ───────────────────────────────────────────────────────────

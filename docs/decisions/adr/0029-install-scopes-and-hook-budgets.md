@@ -12,6 +12,7 @@ verified_by: construct · install-scope + init-no-project-secrets functional tes
 - **Deciders**: Construct·Architect
 - **Supersedes**: none
 - **Extends**: [ADR 0025](0025-explicit-activation-model.md) (explicit activation — extends the "aware, never ambient" doctrine from activation into install-scope opt-in), [ADR 0027](0027-host-project-footprint-and-non-destructive-scaffolding.md) (host-project footprint — completes the install/init boundary by adding scope opt-in for machine-side writes that ADR-0027 left as silent defaults).
+- **Extended by**: [ADR 0071](0071-install-footprint-vs-org-scope-naming.md) renames this ADR's `--scope=project|user|both` install flag to `--footprint=project|user|both` (`--scope` keeps working as a deprecated alias) to resolve a naming collision with the unrelated `construct scope` org-profile command. The `project | user | both` semantics decided below are unchanged — only the flag spelling changed.
 
 ## Problem
 

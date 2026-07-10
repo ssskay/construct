@@ -14,13 +14,13 @@ import assert from 'node:assert/strict';
 
 import { buildSurfaceSnapshot, compareSurfaceSnapshot } from '../lib/decisions/golden.mjs';
 
-test('the live surface matches the committed golden snapshot', () => {
-  const { ok, diffs } = compareSurfaceSnapshot();
+test('the live surface matches the committed golden snapshot', async () => {
+  const { ok, diffs } = await compareSurfaceSnapshot();
   assert.equal(ok, true, diffs.join('; '));
 });
 
-test('the snapshot captures commands, agents, and ordered hooks', () => {
-  const s = buildSurfaceSnapshot();
+test('the snapshot captures commands, agents, and ordered hooks', async () => {
+  const s = await buildSurfaceSnapshot();
   assert.ok(s.commands.length > 0, 'commands captured');
   assert.ok(s.agents.length > 0, 'agents captured');
   assert.ok(Array.isArray(s.hooks.PreToolUse), 'hook order captured');

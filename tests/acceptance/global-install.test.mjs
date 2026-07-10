@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdtempSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, delimiter } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,9 +54,16 @@ test('global install + project init (npm pack -> global install -> 2 projects)',
   let projectB = null;
   const createdDirs = [];
 
+  // Suite-private pack destination: the packing acceptance suites run
+  // concurrently under node --test, and a shared repo-root tarball let one
+  // suite install while another rewrote or deleted the same file — npm's
+  // "tarball data ... seems to be corrupted" on slow runners (construct-rgqym).
+
+  const packDir = mkdtempSync(join(tmpdir(), 'construct-global-tgz-'));
+
   // ── Step 1: npm pack ─────────────────────────────────────────────────
   await t.test('npm pack produces a tarball', () => {
-    const packResult = run('npm', ['pack', '--json'], { cwd: PROJECT_ROOT });
+    const packResult = run('npm', ['pack', '--json', '--pack-destination', packDir], { cwd: PROJECT_ROOT });
 
     if (packResult.status !== 0) {
       t.todo(`npm pack failed (status ${packResult.status}): ${combinedOutput(packResult)}`);
@@ -79,7 +86,7 @@ test('global install + project init (npm pack -> global install -> 2 projects)',
     const filename = packJson[0]?.filename;
     assert.ok(filename, 'npm pack should emit a filename in JSON output');
 
-    tarballPath = resolve(PROJECT_ROOT, filename);
+    tarballPath = resolve(packDir, filename);
     assert.ok(existsSync(tarballPath), `Tarball should exist at ${tarballPath}`);
   });
 
@@ -301,8 +308,6 @@ test('global install + project init (npm pack -> global install -> 2 projects)',
       }
     }
 
-    if (tarballPath && existsSync(tarballPath)) {
-      rmSync(tarballPath, { force: true });
-    }
+    rmTmpDir(packDir);
   });
 });

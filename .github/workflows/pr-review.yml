@@ -1,8 +1,12 @@
 name: pr-review
 
-# Construct-on-Construct: every PR opened or synchronized triggers an
-# automated read-only review by the cx-reviewer persona. The reviewer never
-# commits and never auto-approves; it posts findings as a single PR review.
+# Deterministic diff review on every PR: diff shape plus per-file secret and
+# quality heuristics via `construct review pr` (lib/review-pr.mjs, ADR-0069).
+# No model, no repo secrets — so it runs identically for fork and in-repo
+# PRs. Findings are advisory (blocking enforcement lives in the dedicated
+# secret-scanning and lint gates); the job fails only when the review itself
+# fails to run. An LLM cx-reviewer pass is a local/orchestration capability,
+# not a CI one: fork-PR runners never have provider keys.
 
 on:
   pull_request:
@@ -30,45 +34,39 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
-      - name: Resolve the cx-reviewer fence
-        id: fence
-        run: |
-          node --input-type=module -e "
-            const { loadManifest } = await import('./lib/roles/manifest.mjs');
-            const fence = loadManifest('reviewer')?.fence || {};
-            console.log('::notice::cx-reviewer fence: ' + JSON.stringify(fence));
-          "
-
+      # No `|| true`, no fallback JSON: a review that cannot run must fail the
+      # job visibly rather than post a shrug (the pre-ADR-0069 workflow masked
+      # a Usage error for its entire life). Base is fetched with full history
+      # so the three-dot merge-base diff can resolve.
       - name: Run construct review on the PR diff
         id: review
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_REF: ${{ github.event.pull_request.base.ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          git fetch origin "$BASE_REF" --depth=1
+          git fetch origin "$BASE_REF"
           mkdir -p .cx
-          if command -v construct >/dev/null 2>&1; then
-            construct review --pr="$PR_NUMBER" --persona=cx-reviewer --output=.cx/pr-review.json || true
-          else
-            node ./bin/construct review --pr="$PR_NUMBER" --persona=cx-reviewer --output=.cx/pr-review.json || true
-          fi
-          if [ ! -f .cx/pr-review.json ]; then
-            echo '{"findings":[],"summary":"construct review produced no output — manual review still required"}' > .cx/pr-review.json
-          fi
+          node ./bin/construct review pr --base="origin/$BASE_REF" --output=.cx/pr-review.json
 
+      # Fork PRs run with a read-only GITHUB_TOKEN (pull-requests: write is not
+      # granted to workflows triggered from forks), so `gh pr comment` fails with
+      # "Resource not accessible by integration". Publish to the job summary
+      # instead for forks; in-repo PRs keep the inline comment.
       - name: Post review summary as a PR comment
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
           REPO="${GITHUB_REPOSITORY}"
           PR_NUMBER="${{ github.event.pull_request.number }}"
           BODY="$(jq -r '
-            "## cx-reviewer (automated, read-only)\n\n" +
+            "## construct review pr (deterministic, read-only)\n\n" +
             (if .summary then .summary + "\n\n" else "" end) +
-            (if (.findings // []) | length == 0 then "No blocking findings."
+            (if (.findings // []) | length == 0 then "No findings."
              else "### Findings\n\n" + ((.findings | map("- **" + (.severity // "info") + "**: " + (.message // .summary // "(no message)"))) | join("\n"))
              end)
           ' .cx/pr-review.json)"
-          gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$BODY"
+          if [ "$IS_FORK" = "true" ]; then
+            printf '%s\n' "$BODY" >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh pr comment "$PR_NUMBER" --repo "$REPO" --body "$BODY"
+          fi

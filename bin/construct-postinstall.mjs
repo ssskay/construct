@@ -79,14 +79,16 @@ try {
 } catch { /* fall through */ }
 
 // ADR-0029: machine-scope writes are opt-in. The postinstall hook for a global
-// install prints scope guidance and exits; `~/.claude/CLAUDE.md`,
+// install prints footprint guidance and exits; `~/.claude/CLAUDE.md`,
 // `~/.claude/settings.json`, and `~/.construct/*` land only when the user runs
-// `construct install --scope=user`, so the consent point is visible.
+// `construct install --footprint=user` (ADR-0071 renamed --scope to
+// --footprint; --scope keeps working as a deprecated alias), so the consent
+// point is visible.
 
 if (process.env.npm_config_global === 'true' || process.env.npm_config_global === true) {
   log('global install detected; machine-scope setup is opt-in (ADR-0029)');
   log('to wire ~/.construct/* and the front-door agent, run:');
-  log('  construct install --scope=user');
+  log('  construct install --footprint=user');
   log('to set up a project, cd into it and run:');
   log('  construct init');
   process.exit(0);

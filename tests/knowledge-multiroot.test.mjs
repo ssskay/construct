@@ -1,13 +1,16 @@
 /**
  * tests/knowledge-multiroot.test.mjs — unit coverage for multi-root corpus
- * origin threading (bead construct-760c.2).
+ * origin threading (bead construct-760c.2) and code-file federation
+ * (construct-1smc4.1).
  *
  * Covers the two pure layers under the functional test:
  *   - lib/sources/content-roots.mjs: content-capable target resolution and the
  *     --projects filter expansion (all / self / unknown-id).
  *   - lib/knowledge/rag.mjs buildCorpus: host chunks carry the reserved self
  *     origin; registered-root chunks carry their target's origin plus per-file
- *     relPath; the single-root signature stays back-compatible (R1).
+ *     relPath; the single-root signature stays back-compatible (R1); code
+ *     files (UTF8_TEXT_EXTS) fold in alongside markdown, excluding
+ *     node_modules and non-text extensions.
  */
 
 import assert from 'node:assert/strict';
@@ -94,4 +97,29 @@ test('buildCorpus: registered roots fold in with their own origin + per-file rel
   assert.equal(appChunk.origin.provider, 'directory');
   assert.equal(appChunk.origin.projectKey, 'proj-app');
   assert.equal(appChunk.origin.relPath, path.join('sub', 'guide.md'));
+});
+
+test('buildCorpus: registered roots also fold in code files (construct-1smc4.1)', () => {
+  const host = freshDir('cx-mr-host3-');
+  const appRepo = freshDir('cx-mr-code-');
+  fs.mkdirSync(path.join(appRepo, 'src'), { recursive: true });
+  fs.writeFileSync(path.join(appRepo, 'src', 'main.py'), 'def zqmarkerCodeFn():\n    return "codemarkerword"\n');
+  fs.writeFileSync(path.join(appRepo, 'README.md'), '# App\n\nappmarkerword content.\n');
+  fs.mkdirSync(path.join(appRepo, 'node_modules', 'dep'), { recursive: true });
+  fs.writeFileSync(path.join(appRepo, 'node_modules', 'dep', 'index.js'), 'const vendoredMarker = 1;\n');
+  fs.writeFileSync(path.join(appRepo, 'notes.bin'), Buffer.from([0, 1, 2]));
+
+  const roots = resolveContentRoots([dirTarget('proj-code', appRepo)], { projectRoot: host });
+  const corpus = buildCorpus(host, { roots });
+
+  const codeChunk = corpus.find((c) => c.source === 'target-code' && c.origin?.targetId === 'proj-code');
+  assert.ok(codeChunk, 'a code chunk from the registered target is present');
+  assert.equal(codeChunk.origin.provider, 'directory');
+  assert.equal(codeChunk.origin.projectKey, 'proj-code');
+  assert.equal(codeChunk.origin.relPath, path.join('src', 'main.py'));
+  assert.equal(codeChunk.origin.kind, 'code');
+  assert.ok(codeChunk.body.includes('zqmarkerCodeFn'));
+
+  assert.ok(corpus.every((c) => !(c.filePath ?? '').includes('node_modules')), 'node_modules excluded from code chunks');
+  assert.ok(corpus.every((c) => !(c.filePath ?? '').endsWith('.bin')), '.bin excluded (not in UTF8_TEXT_EXTS)');
 });

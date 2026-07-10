@@ -1,6 +1,6 @@
 ---
 title: Your first task
-description: Initialize a project, sync agents, and dispatch one task end-to-end.
+description: Initialize a project and dispatch one task end-to-end.
 ---
 
 ## Pick a project
@@ -13,41 +13,17 @@ It needs to be a git repo (Construct uses `.git/` to wire pre-commit hooks). Bra
 
 ## Initialize Construct in the project
 
-<Steps>
-<Step>
-### `construct init`
+```bash
+construct init --yes
+```
 
-Scaffolds the project:
+One command does all of it:
 
-- `.cx/context.md` and `.cx/context.json` — durable per-project state Construct reads at session start.
-- `.cx/handoffs/` — gitignored directory where session handoffs land.
-- `docs/` documentation lanes if your project doesn't have them yet.
-- A `.beads/` directory if your project doesn't already track issues.
+- Scaffolds the project — `.cx/context.md` and `.cx/context.json` (durable per-project state Construct reads at session start), `.cx/handoffs/` (gitignored, session handoffs land here), `docs/` documentation lanes if your project doesn't have them yet, a local issue-tracking directory if your project doesn't already track issues (see [durable state →](/guides/concepts/beads-and-state)).
+- Syncs agent adapters into whichever editor configs it finds on disk — `~/.claude/agents/*.md` for Claude Code, `~/.config/opencode/opencode.json` for OpenCode, `~/.codex/agents/*.toml` for Codex, `~/.github/prompts/*.prompt.md` for Copilot prompt profiles, `~/.cursor/mcp.json` for Cursor MCP registrations if Cursor is already configured, VS Code user `settings.json` for GitHub Copilot MCP registrations if VS Code is already configured.
+- Starts the local runtime by default — local dashboard at `http://localhost:<port>` (port auto-selected), memory MCP server at `127.0.0.1:8765`, local trace capture in `.cx/traces/*.jsonl`. Pass `--no-start` to skip service startup, or `--interactive` for the guided flow.
 
-Re-running `construct init` on an existing project is safe; it's idempotent.
-</Step>
-<Step>
-### `construct sync`
-
-Writes the agent definitions to whichever editor configs it finds on disk:
-
-- `~/.claude/agents/*.md` for Claude Code
-- `~/.config/opencode/opencode.json` for OpenCode
-- `~/.codex/agents/*.toml` for Codex
-- `~/.github/prompts/*.prompt.md` for Copilot prompt profiles
-- `~/.cursor/mcp.json` for Cursor MCP registrations if Cursor is already configured
-- VS Code user `settings.json` for GitHub Copilot MCP registrations if VS Code is already configured
-</Step>
-<Step>
-### `construct dev`
-
-Starts the local runtime:
-
-- Local dashboard at `http://localhost:<port>` (port auto-selected)
-- Memory MCP server at `127.0.0.1:8765`
-- Local trace capture in `.cx/traces/*.jsonl`
-</Step>
-</Steps>
+Re-running `construct init` on an existing project is safe; it's idempotent. Re-run `construct sync` on its own any time you only need to refresh adapters (after a registry, prompt, or config change), and `construct dev` on its own any time you only need to (re)start services without touching adapters.
 
 ## Dispatch a task
 
@@ -74,42 +50,20 @@ Good for: code review, architectural decisions, security-sensitive changes, PRDs
 </Card>
 </Cards>
 
-## Drop a signal into the intake queue
+### Confirm specialists will actually run
 
-For work that arrives as a file — a bug report, a customer comment, a competitor scan, a postmortem draft — drop it into `inbox/` at the project root:
+Both dispatch paths above route through specialists — but a specialist chain only runs a real LLM (**EXECUTE**) when a provider is attached; otherwise it only prepares prompts (**PLAN**) and returns no reasoned output. `construct init` printed a line telling you which one you're in:
 
-```bash
-echo "Stack trace on login redirect — reproduce at /auth. authMiddleware crash." > inbox/login-bug.md
+```
+specialists will EXECUTE (provider <family> + key found)
+specialists will only PLAN (fix: set orchestration.workerBackend=provider + a key)
 ```
 
-<FlowPipeline steps={[
-  { label: 'inbox/', sub: 'drop any file' },
-  { label: 'embed daemon', sub: 'classifies in ~1s\nno LLM call' },
-  { label: '.cx/intake/pending/', sub: 'triage packet\ntype · owner · chain' },
-  { label: 'your editor', sub: 'read packet · dispatch', highlight: true },
-]} />
+If you're in Claude Code or OpenCode, a host session is already attached, so specialists EXECUTE with no extra setup. On any other host (Codex, Copilot, VS Code, Cursor), or if you want Claude Code to use a specific provider model instead of the host's own, set `orchestration.workerBackend: "provider"` in `construct.config.json` and export a materialized provider key (`ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, or `OPENAI_API_KEY`). Rerun `construct doctor` and check the last line before trusting specialist output. See [install → EXECUTE vs PLAN](/guides/start/install#execute-vs-plan-do-specialists-actually-run-an-llm).
 
-Inspect via:
+## When you need more: working from files instead of chat
 
-```bash
-construct intake list           # tabular: id, type, stage, owner, action
-construct intake show <id>      # full packet — triage, related artifacts, excerpt
-```
-
-For non-trivial signals, generate the work plan as a task graph:
-
-```bash
-construct graph from-intake <id>   # writes .cx/task-graphs/<graph-id>.json
-construct graph show <graph-id>    # nodes, edges, owners, evidence
-```
-
-The graph mirrors the triage's `recommendedChain` one-to-one. Node status updates carry evidence:
-
-```bash
-construct graph status <graph-id> <node-id> done --evidence="npm test green, 1192 pass"
-```
-
-See [intake and triage](/guides/concepts/intake-and-triage) for the full taxonomy.
+Everything above assumes you're typing requests directly. For work that arrives as a file instead — a bug report, a customer comment, a competitor scan, a postmortem draft — Construct can pick it up automatically, classify it, and route it to the right specialist without you retyping it as a prompt. See [processing incoming files →](/guides/concepts/intake-and-triage) once you're comfortable with the basics above.
 
 ## What just happened
 

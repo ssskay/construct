@@ -5,6 +5,11 @@
     "03-docs:review-doc-reference:chat",
     "03-docs:review-doc-reference:logs",
     "03-docs:review-doc-reference:flow",
+    "03-docs:review-doc-reference:studio",
+    "03-docs:orphaned-doc:docs/notes/research/2026-07-09-cdsp-fmea-participation-model.md",
+    "03-docs:orphaned-doc:docs/notes/research/2026-07-09-cdsp-participation-threat-review.md",
+    "03-docs:orphaned-doc:docs/notes/research/2026-07-09-cdsp-prior-art-and-substrate-validation.md",
+    "03-docs:orphaned-doc:docs/notes/research/2026-07-09-cdsp-substrate-reconciliation-audit.md",
     "02-deadcode:module-test-only:lib/models/execution-policy.mjs",
     "02-deadcode:module-test-only:lib/models/provider-poll.mjs",
     "02-deadcode:module-test-only:lib/host/readiness.mjs",
@@ -18,6 +23,8 @@
     "02-deadcode:module-test-only:lib/embed/presets/tpm.mjs",
     "02-deadcode:module-test-only:lib/embed/presets/ops-triage.mjs",
     "02-deadcode:module-test-only:lib/embed/presets/pm-feedback.mjs",
+    "02-deadcode:module-test-only:lib/embed/presets/pm-repos.mjs",
+    "02-deadcode:module-test-only:lib/orchestration/build-audit-record.mjs",
     "02-deadcode:module-test-only:lib/render-visual-check.mjs"
   ]
 }

@@ -10,7 +10,7 @@ This command turns off planning confirmation, but it does not override validatio
 
 ## Execution Loop
 
-**Step 1: Explore** (cx-explorer)
+**Step 1: Explore** (cx-researcher)
 Map the codebase areas relevant to the task. Identify entry points, dependencies, and affected modules.
 
 **Step 2: Plan** (cx-architect)

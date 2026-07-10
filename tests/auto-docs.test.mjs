@@ -109,3 +109,24 @@ export const CATEGORY_ORDER = [];
   const { changed } = await regenerateDocs({ rootDir });
   assert.equal(changed.length, 0, 'no markers means nothing to update');
 });
+
+test('regenerateDocs stays silent when rootDir is not a git repository', async () => {
+  const rootDir = makeTempRepo({
+    'README.md': '# Construct\n\n## Commands\n\n<!-- AUTO:commands -->\n<!-- /AUTO:commands -->\n',
+    'lib/cli-commands.mjs': `
+export const CLI_COMMANDS = [{ name: 'status', emoji: '📡', category: 'Services', description: 'Show health' }];
+export const CLI_COMMANDS_BY_CATEGORY = { Services: CLI_COMMANDS };
+export const CATEGORY_ORDER = ['Services'];
+    `,
+    'lib/hooks/test-hook.mjs': '/**\n * lib/hooks/test-hook.mjs — sample hook for testing.\n */\n',
+  });
+
+  const libUrl = new URL('../lib/auto-docs.mjs', import.meta.url).href;
+  const { spawnSync } = await import('node:child_process');
+  const res = spawnSync(process.execPath, ['--input-type=module', '-e',
+    `const { regenerateDocs } = await import(${JSON.stringify(libUrl)}); await regenerateDocs({ rootDir: ${JSON.stringify(rootDir)}, check: true });`,
+  ], { encoding: 'utf8' });
+
+  assert.equal(res.status, 0, `child exited ${res.status}: ${res.stderr}`);
+  assert.ok(!res.stderr.includes('fatal: not a git repository'), `git stderr leaked to the user: ${res.stderr}`);
+});

@@ -21,6 +21,7 @@ description: Advanced commands for Construct.
 | `construct gates:audit` | Audit policy gates |
 | `construct hooks:health` | Check hook health |
 | `construct list` | List all agents |
+| `construct monitor` | One-command setup for continuous monitoring-as-a-role: sources.targets + embed.yaml roles + capability enable + daemon start |
 | `construct policy` | Show active policy gates with enforcement details |
 | `construct provider` | Provider management |
 | `construct role` | Role framework management |
@@ -211,6 +212,27 @@ List all agents
 ```bash
 construct list
 ```
+
+## construct monitor
+
+One-command setup for continuous monitoring-as-a-role: sources.targets + embed.yaml roles + capability enable + daemon start
+
+**Usage**
+
+```bash
+construct monitor --as <capability-id> --targets <provider:value>[,...] [--secondary <role>] [--config <path>] [--no-start] [--supervise]
+```
+
+**Options**
+
+| Flag | Description |
+|---|---|
+| `--as <capability-id>` | Embed capability to enable (see `construct embed list`); its specialist becomes embed.yaml roles.primary |
+| `--targets <spec>[,<spec>...]` | Comma-separated provider:value targets (e.g. github:org/repo, jira:PROJ, slack:channel:intent); repeatable |
+| `--secondary <role>` | Set embed.yaml roles.secondary |
+| `--config <path>` | embed.yaml path (default: ./embed.yaml) |
+| `--no-start` | Assemble config and enable the capability but do not start the daemon |
+| `--supervise` | Also install OS-level supervision (construct embed supervise) after starting |
 
 ## construct policy
 

@@ -5,8 +5,8 @@ description: Add Construct to your project like any other dev dependency, then r
 
 <FlowPipeline steps={[
   { label: 'npm install', badge: 'project', sub: '@geraldmaron/construct' },
-  { label: 'construct init', badge: 'machine', sub: 'config · LanceDB · completions' },
-  { label: 'construct sync', badge: 'editors', sub: 'Claude · OpenCode · Codex · Copilot' },
+  { label: 'construct install', badge: 'machine', sub: 'config · LanceDB · completions' },
+  { label: 'construct init', badge: 'project', sub: 'adapters · services' },
 ]} />
 
 ## Prerequisites
@@ -34,7 +34,7 @@ cd ~/your-project
 npx -y @geraldmaron/construct init .
 ```
 
-`init` does what the postinstall does, plus scaffolds `AGENTS.md`, `plan.md`, `.cx/`, `.beads/`, `docs/`, and `construct_guide.md` (a friendly orientation file you can keep or edit).
+`init` does what the postinstall does, plus scaffolds `AGENTS.md`, `plan.md`, `.cx/`, a local issue tracker, `docs/`, and `construct_guide.md` (a friendly orientation file you can keep or edit). See [durable state →](/guides/concepts/beads-and-state) for how that issue tracker fits into session continuity once you're past the basics.
 
 ### Homebrew (for users without Node)
 
@@ -50,7 +50,7 @@ want the Homebrew-managed binary to win.
 ## Run setup (one time per machine)
 
 ```bash
-construct install --scope=user
+construct install --footprint=user
 ```
 
 What setup does, in order:
@@ -60,18 +60,19 @@ What setup does, in order:
 3. Generates shell completions (bash + zsh) so `construct <tab>` works.
 4. Installs optional CLIs (`cm`, `cass`) if Homebrew or cargo is available and you consent.
 5. Installs the Pressure Guard background service (macOS LaunchAgent) so Construct can manage helper processes. Use `--no-launch-agent` to skip this.
-6. Wires `core.hooksPath` to `.beads/hooks/` if your repo has the beads hook directory — activates the local pre-commit policy gates.
+6. Wires `core.hooksPath` to your project's local hook directory if it has one — activates the local pre-commit policy gates.
 7. Prints a "Local services" summary block with local trace capture and the embedded LanceDB index path.
 
-Service consent is cached in `~/.config/construct/config.env` as `BOOTSTRAP_<NAME>=yes|no`. Re-running `construct install --scope=user` won't re-prompt for services you already answered about. Delete those keys to re-prompt.
+Service consent is cached in `~/.config/construct/config.env` as `BOOTSTRAP_<NAME>=yes|no`. Re-running `construct install --footprint=user` won't re-prompt for services you already answered about. Delete those keys to re-prompt.
 
 ### Flags
 
 | Flag | Description |
 |---|---|
-| `--scope=project\|user\|both` | Define the installation scope (default: `project`). |
+| `--footprint=project\|user\|both` | Define the installation footprint — where Construct writes on this machine. Required — a bare `construct install` with no `--footprint` hard-errors naming the flag rather than writing nothing silently. Unrelated to the `construct scope` org-profile command; [ADR-0071](../../decisions/adr/0071-install-footprint-vs-org-scope-naming.md) renamed this flag from `--scope`. |
+| `--scope=project\|user\|both` | Deprecated alias for `--footprint` (same values). Prints a one-line deprecation notice; kept working for existing scripts. See [ADR-0071](../../decisions/adr/0071-install-footprint-vs-org-scope-naming.md). |
 | `--yes` | Accept all defaults without prompting. |
-| `--dry-run` | Preview the install plan (scopes, files, services) without writing anything. |
+| `--dry-run` | Preview the install plan (footprints, files, services) without writing anything. |
 | `--no-launch-agent` | Skip background macOS LaunchAgent registration. |
 | `--reconfigure` | Re-prompt for service consent, ignoring cached answers. |
 | `--with-docling` | Install the Docling runtime for local document extraction. |
@@ -104,7 +105,28 @@ construct doctor
 
 `doctor` runs ~35 health checks across config, services, agents, hooks, and integrations. Anything green is healthy. Warnings explain themselves. Failures point at a fix.
 
-You're installed in `solo` mode — everything runs locally, queue is the filesystem, telemetry is optional. Two other modes (`team` and `enterprise`) promote the intake queue and memory to shared Postgres and route MCP through a broker. Switch with `construct config mode [solo|team|enterprise]`. See [deployment model](/guides/concepts/deployment-model).
+You're installed in `solo` mode — everything runs locally, telemetry is optional. Two other modes (`team` and `enterprise`) promote local state and memory to shared, centrally-routed infrastructure for a whole team. Switch with `construct config mode [solo|team|enterprise]`. See [deployment model](/guides/concepts/deployment-model).
+
+## EXECUTE vs PLAN: do specialists actually run an LLM?
+
+`construct init` and `construct doctor` both end with one of two lines:
+
+```
+specialists will EXECUTE (provider <family> + key found)
+specialists will only PLAN (fix: set orchestration.workerBackend=provider + a key)
+```
+
+PLAN means Construct prepares specialist prompts/tasks but never calls an LLM to reason over them — nothing came back. EXECUTE means a specialist run actually reasoned and returned real output. Read that line at the end of `construct init`/`construct doctor` output — don't assume EXECUTE just because setup finished cleanly.
+
+Claude Code and OpenCode run the specialist chain natively (a host session is attached), so they get real reasoning without any provider key. Every other host (Codex, Copilot, VS Code, Cursor) has no native subagent primitive and needs `orchestration.workerBackend=provider` plus a provider key to EXECUTE — see [connect your editor](/guides/start/connect-your-editor#execute-vs-plan-which-hosts-need-a-provider-key).
+
+To force EXECUTE anywhere — including inside Claude Code, if you don't want to rely on the host's own model — set in `construct.config.json`:
+
+```json
+{ "orchestration": { "workerBackend": "provider" } }
+```
+
+and export a materialized (not `op://...`) key for the provider family you want: `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, or `OPENAI_API_KEY`. `workerBackend` defaults to `inline`, which never runs specialist LLM reasoning regardless of any key present.
 
 You're installed. Now [do your first task →](/guides/start/first-task)
 

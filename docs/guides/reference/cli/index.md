@@ -13,4 +13,4 @@ Commands are grouped by what they do. Pick a category below.
 - [Integrations](/guides/reference/cli/integrations) — 3 commands
 - [Observability](/guides/reference/cli/observability) — 12 commands
 - [Diagnostics](/guides/reference/cli/diagnostics) — 11 commands
-- [Advanced](/guides/reference/cli/advanced) — 28 commands
+- [Advanced](/guides/reference/cli/advanced) — 29 commands

@@ -73,6 +73,10 @@
     {
       "watcher": "high-ambiguity-deep-work",
       "reason": "clarify acceptance criteria (high ambiguity)"
+    },
+    {
+      "watcher": "named-cost-constraint",
+      "reason": "named budget/cost constraint — financial tradeoff review"
     }
   ],
   "permissions": {},

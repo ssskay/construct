@@ -18,7 +18,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -143,8 +143,15 @@ test('LMCP-L4: optional-dep degradation matrix', { timeout: 180_000 }, async (t)
   let tmpDir = null;
   let tarballPath = null;
 
+  // Suite-private pack destination: the packing acceptance suites run
+  // concurrently under node --test, and a shared repo-root tarball let one
+  // suite install while another rewrote or deleted the same file — npm's
+  // "tarball data ... seems to be corrupted" on slow runners (construct-rgqym).
+
+  const packDir = mkdtempSync(join(tmpdir(), 'construct-degradation-tgz-'));
+
   await t.test('npm pack produces tarball', () => {
-    const packResult = run('npm', ['pack', '--json'], { cwd: PROJECT_ROOT });
+    const packResult = run('npm', ['pack', '--json', '--pack-destination', packDir], { cwd: PROJECT_ROOT });
     if (packResult.status !== 0) {
       t.todo(`npm pack failed (status ${packResult.status})`);
       return;
@@ -153,7 +160,7 @@ test('LMCP-L4: optional-dep degradation matrix', { timeout: 180_000 }, async (t)
     const filename = parsePackJson(packResult.stdout);
     assert.ok(filename, 'npm pack should emit a filename');
 
-    tarballPath = resolve(PROJECT_ROOT, filename);
+    tarballPath = resolve(packDir, filename);
     assert.ok(existsSync(tarballPath), `Tarball should exist at ${tarballPath}`);
   });
 
@@ -329,9 +336,7 @@ test('LMCP-L4: optional-dep degradation matrix', { timeout: 180_000 }, async (t)
     if (tmpDir && existsSync(tmpDir)) {
       rmTmpDir(tmpDir);
     }
-    if (tarballPath && existsSync(tarballPath)) {
-      rmSync(tarballPath, { force: true });
-    }
+    rmTmpDir(packDir);
     rmTmpDir(sandboxHome);
   });
 });

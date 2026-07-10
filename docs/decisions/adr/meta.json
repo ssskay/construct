@@ -58,6 +58,9 @@
     "appendix-0065-roster-mapping",
     "0066-config-layer-project-footprint",
     "0067-deterministic-flow-engine",
-    "0068-ingestion-sidecar-process-contract"
+    "0068-ingestion-sidecar-process-contract",
+    "0069-ci-review-gate-deterministic-backend",
+    "0070-participation-pipeline-and-rules-schema",
+    "0071-install-footprint-vs-org-scope-naming"
   ]
 }

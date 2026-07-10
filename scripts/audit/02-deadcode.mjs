@@ -51,7 +51,6 @@ const LAUNCH_SOURCES = ['package.json', 'Dockerfile', 'Dockerfile.worker',
 // is auditable and NEW test-only modules still surface as findings.
 
 const ACCEPTED_TEST_ONLY = {
-  'lib/intake/daemon.mjs': 'entrypoint: `construct intake daemon start` builds a DaemonRunner via computed import',
   'lib/beads/auto-close.mjs': 'entrypoint: the .beads/hooks/post-merge git hook runs it on merge',
   'lib/opencode-runtime-plugin.mjs': 'entrypoint: loaded by the OpenCode host at runtime as a plugin, by path',
   'lib/worker/entrypoint.mjs': 'staged entrypoint for the team/enterprise worker plane (bead construct-9dx); not wired in solo',

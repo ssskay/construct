@@ -74,6 +74,8 @@ Architecture decision records for decisions that have already been made.
 | [0066](./0066-config-layer-project-footprint.md) | Config-layer project footprint — machine-scoped heavy state | accepted | Supersedes in-project heavy-state disposition of ADR-0027 |
 | [0067](./0067-deterministic-flow-engine.md) | Deterministic flow engine | accepted | Supersedes chain-resolution role of orchestration-policy.mjs |
 | [0068](./0068-ingestion-sidecar-process-contract.md) | Ingestion sidecar process contract | accepted | Formalizes the docling sidecar's existing shape; not a supersession |
+| [0069](./0069-ci-review-gate-deterministic-backend.md) | CI review gate: deterministic diff review backend | accepted | |
+| [0070](./0070-participation-pipeline-and-rules-schema.md) | Condition-driven participation: recruit/collaborate/execute/enforce pipeline + participationRules schema | proposed | Supersedes recruitment scope of construct-ca4's WATCHERS/evaluateWatchConditions |
 
 ## Starter templates
 

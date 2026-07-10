@@ -12,7 +12,7 @@ description: Core commands for Construct.
 | `construct docs` | Documentation commands |
 | `construct doctor` | Check installation health |
 | `construct init` | Project setup (once per repo): scaffold .cx/, AGENTS.md, plan.md, adapters |
-| `construct install` | Machine setup (scoped per ADR-0029): --scope=project\|user\|both, default project |
+| `construct install` | Machine setup (footprint per ADR-0029/ADR-0071): --footprint=project\|user\|both, default project |
 | `construct intake` | View and process the active profile's intake queue (queue label varies by profile) |
 | `construct oracle` | Oracle meta-controller — fleet health review and bounded-auto maintenance |
 | `construct recommendations` | View and manage artifact recommendations |
@@ -132,21 +132,22 @@ construct init [path] [options]
 
 ## construct install
 
-Machine setup (scoped per ADR-0029): --scope=project|user|both, default project
+Machine setup (footprint per ADR-0029/ADR-0071): --footprint=project|user|both, default project
 
 **Usage**
 
 ```bash
-construct install [--scope=project|user|both] [--yes] [--dry-run] [--no-launch-agent] [--reconfigure] [--with-docling]
+construct install [--footprint=project|user|both] [--yes] [--dry-run] [--no-launch-agent] [--reconfigure] [--with-docling]
 ```
 
 **Options**
 
 | Flag | Description |
 |---|---|
-| `--scope=<s>` | project (default, no-op + guidance) | user (writes ~/.config/construct/, MCP, ~/.claude/* via consent) | both |
-| `--yes` | Apply defaults without prompts (only meaningful with --scope=user|both) |
-| `--dry-run` | Preview the install plan (scopes, files, services) without writing anything |
+| `--footprint=<f>` | project (default, no-op + guidance) | user (writes ~/.config/construct/, MCP, ~/.claude/* via consent) | both |
+| `--scope=<s>` | deprecated alias for --footprint (same values); prints a deprecation notice — see ADR-0071 |
+| `--yes` | Apply defaults without prompts (only meaningful with --footprint=user|both) |
+| `--dry-run` | Preview the install plan (footprints, files, services) without writing anything |
 | `--no-launch-agent` | Skip background macOS LaunchAgent registration |
 | `--reconfigure` | Re-prompt for service consent, ignoring cached answers |
 | `--with-docling` | Eagerly provision the docling document-extraction venv now (heavy, ~10 min; else lazy on first ingest) |

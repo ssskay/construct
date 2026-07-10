@@ -2,10 +2,11 @@
  * tests/functional/postinstall-global-scope.functional.test.mjs
  *
  * ADR-0029: `npm i -g` runs construct-postinstall.mjs with
- * `npm_config_global=true`. The postinstall must print scope guidance and exit
- * 0 without invoking the global front-door sync — `~/.claude/CLAUDE.md`,
+ * `npm_config_global=true`. The postinstall must print footprint guidance and
+ * exit 0 without invoking the global front-door sync — `~/.claude/CLAUDE.md`,
  * `~/.claude/settings.json`, and `~/.construct/*` only land on
- * `construct install --scope=user`, so the consent point is visible.
+ * `construct install --footprint=user` (ADR-0071 renamed --scope to
+ * --footprint), so the consent point is visible.
  */
 
 import assert from 'node:assert/strict';
@@ -33,7 +34,7 @@ after(() => {
   }
 });
 
-test('npm_config_global=true: postinstall prints scope guidance and writes nothing', () => {
+test('npm_config_global=true: postinstall prints footprint guidance and writes nothing', () => {
   const home = freshHome();
   const res = spawnSync('node', [POSTINSTALL], {
     encoding: 'utf8',
@@ -48,7 +49,7 @@ test('npm_config_global=true: postinstall prints scope guidance and writes nothi
   });
   assert.equal(res.status, 0, `expected exit 0, got ${res.status} — stderr: ${res.stderr}`);
   assert.match(res.stdout, /machine-scope setup is opt-in/);
-  assert.match(res.stdout, /construct install --scope=user/);
+  assert.match(res.stdout, /construct install --footprint=user/);
   assert.equal(fs.existsSync(path.join(home, '.claude', 'settings.json')), false, 'postinstall must not write to ~/.claude/');
   assert.equal(fs.existsSync(path.join(home, '.claude', 'CLAUDE.md')), false, 'postinstall must not write to ~/.claude/CLAUDE.md');
   assert.equal(fs.existsSync(path.join(configDir(home), 'config.env')), false, 'postinstall must not write to configDir()/config.env');

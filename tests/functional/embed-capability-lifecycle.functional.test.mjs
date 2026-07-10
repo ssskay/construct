@@ -73,7 +73,7 @@ test('embed list --json reports all shipped builtin capabilities in a project wi
   // preset, the operations-triage preset, and the pm-feedback preset), each
   // available-but-not-enabled in a project that has enabled none. Sort first
   // — discovery order is not a contract.
-  assert.deepEqual(out.capabilities.map((c) => c.id).sort(), ['operations', 'operations-triage', 'pm-feedback']);
+  assert.deepEqual(out.capabilities.map((c) => c.id).sort(), ['operations', 'operations-triage', 'pm-feedback', 'pm-repos']);
   for (const cap of out.capabilities) {
     assert.equal(cap.enabled, false);
   }

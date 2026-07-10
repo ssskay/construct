@@ -35,6 +35,23 @@ Construct classifies every host honestly — no surface is cosmetic. `construct 
 
 `mcp-orchestrated` hosts get genuine multi-specialist results — the engine owns orchestration, the editor is a thin client (see [orchestrated outcomes in VS Code](#orchestrated-outcomes-in-vs-code) and ADR-0022). A host would only be `prompt-only` if it had neither native dispatch nor MCP — none of the supported hosts are.
 
+## EXECUTE vs PLAN: which hosts need a provider key
+
+`full-native` and `mcp-orchestrated` both describe whether a host can *reach* the specialist chain — not whether that chain actually calls an LLM. `construct init` and `construct doctor` print the real verdict as their last line:
+
+```
+specialists will EXECUTE (provider <family> + key found)
+specialists will only PLAN (fix: set orchestration.workerBackend=provider + a key)
+```
+
+EXECUTE requires the config-resolved `orchestration.workerBackend` to be `"provider"` **and** a materialized (not `op://...`) key present for the selected provider family. Anything else — the default `inline` backend, `host` with no attached session, or `provider` with no key — degrades to PLAN: Construct still prepares specialist prompts/tasks, but no LLM ever reasons over them.
+
+- **Claude Code and OpenCode** (`full-native`) run the specialist chain through the host's own attached session, so they EXECUTE with no provider key required — the host's own model does the reasoning.
+- **Codex, Copilot, VS Code, Cursor** (`mcp-orchestrated`) have no attached subagent session to fall back on. They need `orchestration.workerBackend: "provider"` in `construct.config.json`, plus a materialized `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`, or `OPENAI_API_KEY` in the environment the MCP server runs in — without both, `orchestration_run` on these hosts only plans.
+- Even inside Claude Code or OpenCode, set `orchestration.workerBackend: "provider"` (+ a key) if you want a specific provider model instead of the host's own.
+
+Verify with `construct doctor` (reads the last line) or `construct orchestrate preflight --json` (full `workerBackend`/`credentialMaterializable`/`modelResolved` detail).
+
 ## Claude Code
 
 **Global tier** writes safety hooks and global instructions — but **no agent file** (the orchestrator is project-scoped, so it isn't duplicated in editors that read both scopes):

@@ -1,6 +1,10 @@
 {
   "commands": [
     {
+      "name": "acp",
+      "core": false
+    },
+    {
       "name": "activation:status",
       "core": false
     },
@@ -9,7 +13,23 @@
       "core": true
     },
     {
+      "name": "artifact",
+      "core": false
+    },
+    {
       "name": "ask",
+      "core": false
+    },
+    {
+      "name": "audit",
+      "core": false
+    },
+    {
+      "name": "auth:status",
+      "core": false
+    },
+    {
+      "name": "backup",
       "core": false
     },
     {
@@ -25,8 +45,12 @@
       "core": false
     },
     {
-      "name": "check",
-      "core": true
+      "name": "capability",
+      "core": false
+    },
+    {
+      "name": "certify",
+      "core": false
     },
     {
       "name": "ci",
@@ -49,15 +73,15 @@
       "core": false
     },
     {
-      "name": "contribute --target <id> [--against <ids|all>]",
-      "core": true
-    },
-    {
-      "name": "create [--profile=<id>]",
-      "core": true
-    },
-    {
       "name": "creds",
+      "core": false
+    },
+    {
+      "name": "customer",
+      "core": false
+    },
+    {
+      "name": "db",
       "core": false
     },
     {
@@ -73,10 +97,6 @@
       "core": false
     },
     {
-      "name": "describe --json",
-      "core": false
-    },
-    {
       "name": "dev",
       "core": true
     },
@@ -87,6 +107,18 @@
     {
       "name": "diff",
       "core": false
+    },
+    {
+      "name": "distill",
+      "core": false
+    },
+    {
+      "name": "doc",
+      "core": false
+    },
+    {
+      "name": "docs",
+      "core": true
     },
     {
       "name": "docs:check",
@@ -107,6 +139,10 @@
     {
       "name": "docs:verify",
       "core": false
+    },
+    {
+      "name": "doctor",
+      "core": true
     },
     {
       "name": "drop",
@@ -133,6 +169,10 @@
       "core": false
     },
     {
+      "name": "execution",
+      "core": false
+    },
+    {
       "name": "export",
       "core": false
     },
@@ -142,6 +182,10 @@
     },
     {
       "name": "feedback:record",
+      "core": false
+    },
+    {
+      "name": "flow",
       "core": false
     },
     {
@@ -162,6 +206,14 @@
     },
     {
       "name": "hook",
+      "core": false
+    },
+    {
+      "name": "hooks:health",
+      "core": false
+    },
+    {
+      "name": "hosts",
       "core": false
     },
     {
@@ -201,7 +253,7 @@
       "core": false
     },
     {
-      "name": "invoke --json --workflow-type <t> [--text|--file|<stdin>]",
+      "name": "knowledge",
       "core": false
     },
     {
@@ -230,7 +282,7 @@
     },
     {
       "name": "list",
-      "core": true
+      "core": false
     },
     {
       "name": "llm-judge",
@@ -253,6 +305,14 @@
       "core": false
     },
     {
+      "name": "models",
+      "core": false
+    },
+    {
+      "name": "monitor",
+      "core": false
+    },
+    {
       "name": "ollama",
       "core": false
     },
@@ -265,7 +325,19 @@
       "core": true
     },
     {
+      "name": "orchestrate",
+      "core": false
+    },
+    {
       "name": "overrides",
+      "core": false
+    },
+    {
+      "name": "pack",
+      "core": false
+    },
+    {
+      "name": "plugin",
       "core": false
     },
     {
@@ -289,8 +361,8 @@
       "core": false
     },
     {
-      "name": "recommend --json [--text|--file|<stdin>]",
-      "core": false
+      "name": "recommendations",
+      "core": true
     },
     {
       "name": "reflect",
@@ -317,15 +389,7 @@
       "core": false
     },
     {
-      "name": "resolve --json",
-      "core": false
-    },
-    {
       "name": "resources",
-      "core": false
-    },
-    {
-      "name": "resume <run-id> --flow=<path> [--state=<json>]",
       "core": false
     },
     {
@@ -349,8 +413,8 @@
       "core": false
     },
     {
-      "name": "run \"<request>\" [--strategy S] [--host H] [--worker-backend provider] [--no-construct] [--no-execute] [--json] [--remote]",
-      "core": false
+      "name": "sandbox",
+      "core": true
     },
     {
       "name": "scheduler",
@@ -358,7 +422,7 @@
     },
     {
       "name": "scope",
-      "core": false
+      "core": true
     },
     {
       "name": "search",
@@ -366,10 +430,6 @@
     },
     {
       "name": "seed-traces",
-      "core": false
-    },
-    {
-      "name": "show",
       "core": false
     },
     {
@@ -393,16 +453,8 @@
       "core": false
     },
     {
-      "name": "start",
-      "core": false
-    },
-    {
       "name": "status",
       "core": true
-    },
-    {
-      "name": "status [--json]",
-      "core": false
     },
     {
       "name": "stop",
@@ -417,6 +469,14 @@
       "core": true
     },
     {
+      "name": "synthesize",
+      "core": false
+    },
+    {
+      "name": "tags",
+      "core": false
+    },
+    {
       "name": "team",
       "core": false
     },
@@ -429,11 +489,19 @@
       "core": false
     },
     {
+      "name": "telemetry",
+      "core": false
+    },
+    {
       "name": "telemetry-backfill",
       "core": false
     },
     {
       "name": "telemetry-setup",
+      "core": false
+    },
+    {
+      "name": "templates",
       "core": false
     },
     {
@@ -445,7 +513,7 @@
       "core": false
     },
     {
-      "name": "trends",
+      "name": "uninstall",
       "core": false
     },
     {
@@ -474,6 +542,10 @@
     },
     {
       "name": "workflow",
+      "core": false
+    },
+    {
+      "name": "workspace",
       "core": false
     }
   ],

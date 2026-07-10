@@ -1459,12 +1459,21 @@ ${buildPrompt(entry, allEntries, "copilot")}
 }
 
 function syncCopilot(entries, targetDir = null, wants = true) {
+  // Deselected host: leave prior Copilot outputs untouched. Adapter pruning is
+  // explicit-consent-only and `.github` is out of adapter-prune's scope
+  // (lib/reconcile/adapter-prune.mjs), so a sync that did not select copilot
+  // must never delete or degrade another run's files — the old empty-writeEntries
+  // fall-through pruned .github/prompts and .github/agents and blanked the
+  // instructions block on every copilot-less sync (construct-lqp4c).
+
+  if (!wants) return;
+
   const promptsDir = targetDir
     ? path.join(targetDir, ".github", "prompts")
     : path.join(home, ".github", "prompts");
-  if (!DRY_RUN && wants) mkdirp(promptsDir);
+  if (!DRY_RUN) mkdirp(promptsDir);
 
-  const writeEntries = wants ? globalEntries(entries) : [];
+  const writeEntries = globalEntries(entries);
 
   for (const entry of writeEntries) {
     writeFile(path.join(promptsDir, `${adapterName(entry)}.prompt.md`), copilotPrompt(entry, entries), { stamp: false });
@@ -1483,7 +1492,7 @@ function syncCopilot(entries, targetDir = null, wants = true) {
   const agentsDir = targetDir
     ? path.join(targetDir, ".github", "agents")
     : path.join(home, ".github", "agents");
-  if (!DRY_RUN && wants) mkdirp(agentsDir);
+  if (!DRY_RUN) mkdirp(agentsDir);
   for (const entry of writeEntries) {
     writeFile(path.join(agentsDir, `${adapterName(entry)}.agent.md`), copilotAgentFile(entry, entries), { stamp: false });
   }

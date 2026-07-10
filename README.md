@@ -10,7 +10,7 @@
 
 Construct sits on top of Claude Code, OpenCode, Codex, Cursor, and Copilot. You talk to one persona called `construct`. Behind it is a team of specialists shaped by your **org profile**: software R&D by default, with curated profiles for operations, creative, and research orgs, plus a schema-validated escape hatch for custom profiles. Each profile organizes its specialists by department (Product, Engineering, Operations, etc.) and carries its own intake taxonomy, doc templates, and role set. Sessions survive boundary changes via durable state in `.cx/`, beads, and a local vector index. Solo by default. Can deploy centrally for teams that want shared memory, telemetry, queues, and policy.
 
-`construct scope show|list|set <id>` to switch. See [Profile lifecycle](https://geraldmaron.github.io/construct/concepts/scope-lifecycle) for how new profiles are built (it's a research process, not a JSON exercise).
+`construct scope show|list|set <id>` to switch org-scope/profile. See [Profile lifecycle](https://geraldmaron.github.io/construct/concepts/scope-lifecycle) for how new profiles are built (it's a research process, not a JSON exercise). This is unrelated to the `--footprint` flag on `construct install` below (install-write-target vs. org profile) — see [ADR-0071](docs/decisions/adr/0071-install-footprint-vs-org-scope-naming.md), which records the decision to rename that install flag from `--scope` to `--footprint` (`--scope` still works as a deprecated alias).
 
 The team and enterprise modes exist because I wanted to learn what shipping a real multi-tenant tool would look like. The project is still open source, the code is still public, and the bar is still "does this help me learn." Run it solo if that's all you need.
 
@@ -22,13 +22,16 @@ Install the CLI (once per machine):
 npm install -g @geraldmaron/construct
 ```
 
+> [!NOTE]
+> npm may print deprecation warnings for `boolean` and `node-domexception` during install. Both are transitive dependencies of upstream packages (`@huggingface/transformers` → `onnxruntime-node` → `global-agent` → `boolean`; `@lancedb/lancedb` → `openai@4.29.2` → `formdata-node` → `node-domexception`) and are harmless. They cannot be silenced from this package — `@lancedb/lancedb` pins `openai@4.29.2` exactly, and npm ignores a package's own `overrides` on end-user installs.
+
 Bootstrap local services (once per machine, opt-in to machine-scope writes):
 
 ```bash
-construct install --scope=user --yes
+construct install --footprint=user --yes
 ```
 
-`construct install` defaults to `--scope=project`, which writes nothing and prints scope guidance — see the [footprint contract](#footprint-contract) below or [ADR 0029](docs/decisions/adr/0029-install-scopes-and-hook-budgets.md). Use `--scope=user` for machine setup, `--scope=both` for both.
+`construct install` requires an explicit `--footprint` — a bare invocation hard-errors naming the flag rather than silently writing nothing. `--footprint=project` prints footprint guidance without writing anything (see the [footprint contract](#footprint-contract) below or [ADR 0029](docs/decisions/adr/0029-install-scopes-and-hook-budgets.md)); use `--footprint=user` for machine setup, `--footprint=both` for both. (`--footprint` here means "where Construct writes on this machine," not the `construct scope` org-profile command above — [ADR-0071](docs/decisions/adr/0071-install-footprint-vs-org-scope-naming.md) renamed this flag from `--scope`; `--scope=<value>` still works as a deprecated alias.)
 
 Initialize a project:
 
@@ -129,12 +132,12 @@ Every code mutation runs through enforcement. No secrets committed, tests green,
 
 ## Footprint contract
 
-Construct's writes are scoped and disclosed up front. The default `construct install` (no flag) writes nothing — it prints scope guidance. Project writes happen only under `construct init` inside a project directory; machine writes happen only under `construct install --scope=user`, with an itemized interactive consent prompt for any global Claude Code config mutation.
+Construct's writes are scoped and disclosed up front. The default `construct install` (no flag) writes nothing — it prints footprint guidance. Project writes happen only under `construct init` inside a project directory; machine writes happen only under `construct install --footprint=user`, with an itemized interactive consent prompt for any global Claude Code config mutation.
 
-| Scope | Trigger | Paths |
+| Footprint | Trigger | Paths |
 |---|---|---|
 | Project | `construct init` | `.construct/`, `.cx/`, `.claude/` adapter tree, host adapters (`.codex/`, `.opencode/`, `.cursor/`, `.vscode/`), `construct.config.json`, marker block in `CLAUDE.md` / `AGENTS.md`, `.gitignore` append, `.beads/` |
-| Machine | `construct install --scope=user` | `~/.construct/config.env`, `~/.construct/lib` (symlink), `~/.construct/services/`, `~/Library/LaunchAgents/` (macOS), MCP entries in `~/.config/opencode/opencode.json` and `~/.codex/config.toml`, marker block in `~/.claude/CLAUDE.md`, hook injection in `~/.claude/settings.json` (last two require interactive consent or `--yes`) |
+| Machine | `construct install --footprint=user` | `~/.construct/config.env`, `~/.construct/lib` (symlink), `~/.construct/services/`, `~/Library/LaunchAgents/` (macOS), MCP entries in `~/.config/opencode/opencode.json` and `~/.codex/config.toml`, marker block in `~/.claude/CLAUDE.md`, hook injection in `~/.claude/settings.json` (last two require interactive consent or `--yes`) |
 | Never touched | — | Shell rc files (`~/.bashrc`, `~/.zshrc`), npm global config, `git config --global` |
 
 Full table with file:line citations and the per-hook performance budget contract: [Architecture — Footprint contract](https://geraldmaron.github.io/construct/concepts/architecture#footprint-contract) and [ADR 0029](docs/decisions/adr/0029-install-scopes-and-hook-budgets.md).
@@ -161,7 +164,7 @@ The embed daemon writes its supervisor stdout log to `~/.cx/runtime/embed-daemon
 | `construct docs` | Documentation commands |
 | `construct doctor` | Check installation health |
 | `construct init` | Project setup (once per repo): scaffold .cx/, AGENTS.md, plan.md, adapters |
-| `construct install` | Machine setup (scoped per ADR-0029): --scope=project\|user\|both, default project |
+| `construct install` | Machine setup (footprint per ADR-0029/ADR-0071): --footprint=project\|user\|both, default project |
 | `construct intake` | View and process the active profile's intake queue (queue label varies by profile) |
 | `construct oracle` | Oracle meta-controller — fleet health review and bounded-auto maintenance |
 | `construct recommendations` | View and manage artifact recommendations |
@@ -243,7 +246,7 @@ The embed daemon writes its supervisor stdout log to `~/.cx/runtime/embed-daemon
 | `construct improvement` | Governed improvement loop — review, approve, and record apply/rollback for proposals |
 | `construct llm-judge` | Run LLM-as-a-judge evaluations on unscored traces for continuous quality feedback |
 | `construct optimize` | Prompt optimization using telemetry trace quality scores |
-| `construct review` | Generate agent performance review from the configured telemetry trace backend |
+| `construct review` | Agent performance review from telemetry (run\|legacy), or a deterministic PR-diff review for CI (pr) |
 | `construct telemetry` | Query telemetry traces and latency data |
 | `construct telemetry-backfill` | Backfill sparse traces with observations (trace backend) |
 | `construct telemetry-setup` | Configure telemetry backend credentials and trace export (OTLP or Langfuse-compatible) |
@@ -282,6 +285,7 @@ The embed daemon writes its supervisor stdout log to `~/.cx/runtime/embed-daemon
 | `construct gates:audit` | Audit policy gates |
 | `construct hooks:health` | Check hook health |
 | `construct list` | List all agents |
+| `construct monitor` | One-command setup for continuous monitoring-as-a-role: sources.targets + embed.yaml roles + capability enable + daemon start |
 | `construct policy` | Show active policy gates with enforcement details |
 | `construct provider` | Provider management |
 | `construct role` | Role framework management |

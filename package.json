@@ -1,6 +1,6 @@
 {
   "name": "@geraldmaron/construct",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "type": "module",
   "packageManager": "npm@11.5.1",
   "description": "Construct — agent orchestration layer for OpenCode, Claude Code, and other coding surfaces",
@@ -110,7 +110,7 @@
     "@lancedb/lancedb": "^0.31.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "apache-arrow": "^18.1.0",
-    "js-yaml": "^4.2.0"
+    "js-yaml": "^5.2.1"
   },
   "optionalDependencies": {
     "@ai-sdk/anthropic": "^3.0.85",
@@ -127,10 +127,6 @@
     "react": "^19.2.7",
     "unpdf": "^1.6.2",
     "zod": "^4.4.3"
-  },
-  "overrides": {
-    "express-rate-limit": "8.5.1",
-    "undici": "6.27.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -60,9 +60,16 @@ test('packed consumer install (npm pack → clean install → smoke)', { timeout
   let tmpDir = null;
   let tarballPath = null;
 
+  // Suite-private pack destination: the packing acceptance suites run
+  // concurrently under node --test, and a shared repo-root tarball let one
+  // suite install while another rewrote or deleted the same file — npm's
+  // "tarball data ... seems to be corrupted" on slow runners (construct-rgqym).
+
+  const packDir = mkdtempSync(join(tmpdir(), 'construct-pack-tgz-'));
+
   // ── Step 1: npm pack ─────────────────────────────────────────────────
   await t.test('npm pack produces a tarball', () => {
-    const packResult = run('npm', ['pack', '--json'], { cwd: PROJECT_ROOT });
+    const packResult = run('npm', ['pack', '--json', '--pack-destination', packDir], { cwd: PROJECT_ROOT });
 
     if (packResult.status !== 0) {
       // Skip gracefully — build artifact may be missing in this environment
@@ -88,7 +95,7 @@ test('packed consumer install (npm pack → clean install → smoke)', { timeout
     const filename = packJson[0]?.filename;
     assert.ok(filename, 'npm pack should emit a filename in JSON output');
 
-    tarballPath = resolve(PROJECT_ROOT, filename);
+    tarballPath = resolve(packDir, filename);
     assert.ok(existsSync(tarballPath), `Tarball should exist at ${tarballPath}`);
   });
 
@@ -206,9 +213,7 @@ test('packed consumer install (npm pack → clean install → smoke)', { timeout
       rmTmpDir(tmpDir);
     }
 
-    if (tarballPath && existsSync(tarballPath)) {
-      rmSync(tarballPath, { force: true });
-    }
+    rmTmpDir(packDir);
     rmTmpDir(sandboxHome);
   });
 });

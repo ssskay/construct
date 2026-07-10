@@ -36,7 +36,7 @@ test('all builtin manifests are present', () => {
   const ids = manifests.map((m) => m.id).sort();
   assert.deepEqual(ids, [
     'architecture-review', 'data-structure', 'evidence-ingest', 'memo-draft',
-    'operations', 'operations-triage', 'pm-feedback', 'prd-draft', 'proposal-review', 'research-synthesis', 'risk-review',
+    'operations', 'operations-triage', 'pm-feedback', 'pm-repos', 'prd-draft', 'proposal-review', 'research-synthesis', 'risk-review',
     'structure-notes', 'transcript-process', 'triage',
   ]);
 });
