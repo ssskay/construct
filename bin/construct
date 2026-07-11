@@ -3220,6 +3220,32 @@ async function cmdSkillsUsage(sub, args) {
     return;
   }
 
+  if (sub === 'quality') {
+    // Local twin of correlate-quality: reads the JSONL attribution log that
+    // lib/telemetry/skill-outcomes.mjs writes when outcomes carry a sessionId.
+    // No Postgres, no network — rebuilds the summary on every invocation.
+
+    const { aggregateSkillOutcomes, DEFAULT_SUMMARY_PATH } = await import('../lib/telemetry/skill-outcomes-aggregate.mjs');
+    const summary = aggregateSkillOutcomes();
+    const rows = Object.entries(summary.skills)
+      .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]));
+    if (rows.length === 0) {
+      println('No skill outcome attributions yet.');
+      println('Attributions appear once a session outcome (agent-tracker or outcomes_record)');
+      println('carries a sessionId that matches skill load events in skill-calls.jsonl.');
+      return;
+    }
+    const pct = (v) => (v == null ? '   -' : `${Math.round(v * 100)}%`.padStart(4));
+    println(`Skill quality — ${rows.length} skill(s), ${summary.totalOutcomes} attributed outcome(s)\n`);
+    println(`  ${'skill'.padEnd(50)} outcomes  success  last30  trend`);
+    for (const [id, s] of rows) {
+      const trend = s.trend == null ? '    -' : `${s.trend > 0 ? '+' : ''}${(s.trend * 100).toFixed(0)}%`.padStart(5);
+      println(`  ${id.padEnd(50)} ${String(s.count).padStart(8)}  ${pct(s.successRate).padStart(7)}  ${pct(s.last30.count > 0 ? s.last30.successRate : null).padStart(6)}  ${trend}`);
+    }
+    println(`\nSummary written to ${DEFAULT_SUMMARY_PATH}`);
+    return;
+  }
+
   if (sub === 'correlate-quality') {
     // Queries the construct_skill_quality_correlation view (db/schema/010_cx_scores.sql)
     // which aggregates cx_score values by session_id × skill_id over the past 90 days.
@@ -3280,7 +3306,7 @@ async function cmdSkillsUsage(sub, args) {
     return;
   }
 
-  errorln(`Unknown skills subcommand: ${sub}. Available: usage, orphans, hot, correlate-quality, backfill-postgres`);
+  errorln(`Unknown skills subcommand: ${sub}. Available: usage, orphans, hot, quality, correlate-quality, backfill-postgres`);
   process.exit(1);
 }
 
@@ -7690,10 +7716,10 @@ const handlers = new Map([
       const { runSkillsApplyCli } = await import('../lib/skills-apply.mjs');
       return runSkillsApplyCli(args.slice(1));
     }
-    if (sub === 'usage' || sub === 'orphans' || sub === 'hot' || sub === 'correlate-quality' || sub === 'backfill-postgres') {
+    if (sub === 'usage' || sub === 'orphans' || sub === 'hot' || sub === 'quality' || sub === 'correlate-quality' || sub === 'backfill-postgres') {
       return cmdSkillsUsage(sub, args.slice(1));
     }
-    errorln(`Unknown skills subcommand: ${sub}. Available: scope, apply, suggest, routing, usage, orphans, hot, correlate-quality, backfill-postgres`);
+    errorln(`Unknown skills subcommand: ${sub}. Available: scope, apply, suggest, routing, usage, orphans, hot, quality, correlate-quality, backfill-postgres`);
     process.exit(1);
   }],
   ['ask', async (args) => {

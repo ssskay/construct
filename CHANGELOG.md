@@ -4,6 +4,10 @@ All notable changes to Construct are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- Skill effectiveness pipeline, phase 1 — a local per-skill quality signal (capture only, no routing changes). When a specialist outcome carries a `sessionId` (`lib/outcomes/record.mjs` gains an optional `payload.sessionId`; the agent-tracker hook passes the hook input's `session_id`, and MCP `outcomes_record` accepts `session_id`), new `lib/telemetry/skill-outcomes.mjs` joins it against the `sessionId` column of `~/.cx/skill-calls.jsonl` and appends one attributed line per distinct skill loaded in that session to `~/.cx/skill-outcomes.jsonl` (user scope, `projectId`-tagged, rotated via a new `skill-outcomes` channel in `lib/logging/rotate.mjs`, capped/overridable with `CONSTRUCT_SKILL_OUTCOMES_MAX_MB`). New `lib/telemetry/skill-outcomes-aggregate.mjs` mirrors `lib/outcomes/aggregate.mjs` at the skill level: per-skill lifetime + 30-day success rates and a trend delta, written idempotently to `~/.cx/skill-outcomes-summary.json`. New `construct skills quality` renders the rollup — the local JSONL twin of the Postgres-only `skills correlate-quality`. Attribution is best-effort and off the critical path (all IO failures swallowed, never affects the role outcome write) and honors `CONSTRUCT_SKILL_TELEMETRY=off`. Tests: `tests/functional/skill-quality-signal.functional.test.mjs` (real agent-tracker hook in an isolated `CONSTRUCT_DOCTOR_ROOT`: attribution with per-skill dedup and cross-session exclusion, CLI rendering + summary JSON, telemetry-off suppression, unknown-session no-op). Docs: `docs/guides/concepts/learning-loops.mdx` gains an "A3-skills" section.
+
 ## [1.5.4] - 2026-07-11
 
 Promotes `1.5.4-alpha.2` to stable (`latest`), plus one release-blocking fix found while testing the alpha on a real consumer project, plus the learning-loop self-improvement gap closure landed after the alpha was cut. See `[1.5.4-alpha.2]` and `[1.5.4-alpha.1]` below for the full itemized ADR-0069 consolidation and CI-hardening history already carried by this version.

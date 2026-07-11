@@ -1,23 +1,23 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-11T02:48:00.835Z",
+  "generatedAt": "2026-07-11T04:08:15.371Z",
   "generator": "node scripts/generate-test-corpus-inventory.mjs",
   "summary": {
-    "testFiles": 877,
+    "testFiles": 878,
     "topLevelTestFiles": 365,
-    "nestedTestFiles": 512,
+    "nestedTestFiles": 513,
     "skippedFiles": 0,
     "capabilityMarkedFiles": 50,
     "byLayer": {
       "unit": 579,
-      "functional": 250,
+      "functional": 251,
       "visual": 12,
       "live-provider": 2,
       "integration": 34
     },
     "byCategory": {
       "unit": 516,
-      "functional": 250,
+      "functional": 251,
       "visual": 12,
       "structural-guard": 19,
       "contract-subsystem": 44,
@@ -4114,6 +4114,14 @@
       "capabilities": [],
       "skipped": false,
       "maintainerNotes": "tests/functional/shared-state.functional.test.mjs — LMCP-G10."
+    },
+    {
+      "path": "tests/functional/skill-quality-signal.functional.test.mjs",
+      "layer": "functional",
+      "category": "functional",
+      "capabilities": [],
+      "skipped": false,
+      "maintainerNotes": "skill-quality-signal.functional.test.mjs — phase 1 of the skill"
     },
     {
       "path": "tests/functional/source-target-directory.functional.test.mjs",
