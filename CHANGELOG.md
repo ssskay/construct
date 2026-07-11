@@ -4,6 +4,10 @@ All notable changes to Construct are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- Functional tests for two previously untested PostToolUseFailure hooks. `tests/functional/edit-error-recovery.functional.test.mjs` spawns the real `lib/hooks/edit-error-recovery.mjs` over stdin JSON and pins the contract: a matching edit tool + edit-failure error prints recovery steps naming the failed `file_path` (including the `tool_response`-JSON match path), while a non-edit tool, a non-matching error, or malformed stdin stays silent at exit 0. `tests/functional/context-window-recovery.functional.test.mjs` spawns `lib/hooks/context-window-recovery.mjs` in a sterile env (`sterileSpawnEnv()`, HOME/CX_HOME_OVERRIDE pinned to a fresh tmpdir) and asserts the durable artifacts: a context-limit error writes `.cx/context.md` + `context.json` in both the project cwd and `doctorRoot()`, records the `context-recovery.json` cooldown stamp, a second trigger inside the 10-minute cooldown is a full no-op, an expired cooldown fires again, and a non-matching error writes nothing.
+
 ## [1.5.3] - 2026-07-09
 
 ### Fixed
