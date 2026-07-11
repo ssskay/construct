@@ -34,7 +34,9 @@ export function realProtectedPaths(home = homedir()) {
     join(home, ".claude", "settings.json"),
     // Claude Code's user-scope MCP servers live here, not in settings.json
     // (construct-ranh) — guard it too so a sandbox leak into the real ~/.claude.json
-    // (which also carries unrelated Claude Code runtime state) is caught.
+    // is caught. This file also carries Claude Code runtime state that any live
+    // Claude session rewrites, so it is fingerprinted by its MCP surface only
+    // (hashClaudeUserMcpSurface), not by content hash.
     join(home, ".claude.json"),
     join(home, ".codex", "config.toml"),
   ];
@@ -61,6 +63,43 @@ function hashPath(p) {
   }
 }
 
+// ~/.claude.json interleaves Claude Code's volatile runtime state (pluginUsage
+// counters, growthbook cache stamps, per-project history — rewritten by any live
+// Claude session, including the one a developer is running the suite from) with
+// the one surface Construct manages there: MCP server definitions. Hashing the
+// whole file makes the guard flap on ambient telemetry writes, so fingerprint
+// only the MCP surface — top-level `mcpServers` plus each project's `mcpServers`
+// — canonicalized by key order. Same volatility trim as the `ollama list`
+// fingerprint above. An unparseable file falls back to the content hash so a
+// test that corrupts it is still caught.
+
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.keys(value).sort().map((k) => [k, canonicalize(value[k])]));
+  }
+  return value;
+}
+
+function hashClaudeUserMcpSurface(p) {
+  if (!existsSync(p)) return "absent";
+  let config;
+  try {
+    config = JSON.parse(readFileSync(p, "utf8"));
+  } catch {
+    return hashPath(p);
+  }
+  const surface = {
+    mcpServers: config?.mcpServers ?? {},
+    projects: Object.fromEntries(
+      Object.entries(config?.projects ?? {})
+        .filter(([, v]) => v?.mcpServers && Object.keys(v.mcpServers).length)
+        .map(([k, v]) => [k, v.mcpServers]),
+    ),
+  };
+  return createHash("sha256").update(JSON.stringify(canonicalize(surface))).digest("hex").slice(0, 16);
+}
+
 // Fingerprint the durable model identity (sorted names) only — `ollama list`'s
 // SIZE/MODIFIED columns are volatile (relative timestamps) and would make the guard
 // flap. Model set membership is what "real store unchanged" actually means.
@@ -80,7 +119,10 @@ function realOllamaList() {
 
 export function fingerprintRealConfigs(home = homedir()) {
   const fp = {};
-  for (const p of realProtectedPaths(home)) fp[p] = hashPath(p);
+  const claudeUserConfigPath = join(home, ".claude.json");
+  for (const p of realProtectedPaths(home)) {
+    fp[p] = p === claudeUserConfigPath ? hashClaudeUserMcpSurface(p) : hashPath(p);
+  }
   fp["ollama:list"] = createHash("sha256").update(realOllamaList()).digest("hex").slice(0, 16);
   fp["construct:projects"] = createHash("sha256").update(realConstructProjectKeys(home)).digest("hex").slice(0, 16);
   return fp;

@@ -9,7 +9,8 @@
 import test from "node:test";
 import assert from "node:assert";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHostSandbox, fingerprintRealConfigs, assertRealConfigsUnchanged } from "./sterile-host-env.mjs";
@@ -55,4 +56,94 @@ test("a write into the real config path is detected as a sterile violation", () 
   const before = fingerprintRealConfigs();
   const tampered = { ...before, "ollama:list": "deadbeefdeadbeef" };
   assert.throws(() => assertRealConfigsUnchanged(tampered), /Sterile violation/);
+});
+
+// ~/.claude.json mixes Claude Code's own volatile runtime state (pluginUsage
+// counters, growthbook cache stamps, per-project history) with the one surface
+// Construct manages there: MCP server definitions. A live Claude session
+// rewriting its telemetry mid-suite must not read as a test leak, while any
+// change to user- or project-scope mcpServers still must.
+
+function fixtureHome(claudeJson) {
+  const home = mkdtempSync(join(tmpdir(), "cx-sterile-fp-"));
+  writeFileSync(join(home, ".claude.json"), JSON.stringify(claudeJson, null, 2));
+  return home;
+}
+
+const BASE_CLAUDE_JSON = {
+  mcpServers: { "construct-memory": { command: "node", args: ["bridge.mjs"] } },
+  projects: {
+    "/Users/someone/project": {
+      mcpServers: { "local-server": { command: "node" } },
+      history: [{ display: "old prompt" }],
+    },
+  },
+  pluginUsage: { "superpowers@official": { usageCount: 1, lastUsedAt: 1 } },
+  cachedGrowthBookFeaturesAt: 1,
+};
+
+test("Claude Code runtime telemetry churn in ~/.claude.json is not sterile drift", () => {
+  const home = fixtureHome(BASE_CLAUDE_JSON);
+  try {
+    const before = fingerprintRealConfigs(home);
+    writeFileSync(join(home, ".claude.json"), JSON.stringify({
+      ...BASE_CLAUDE_JSON,
+      pluginUsage: { "superpowers@official": { usageCount: 2, lastUsedAt: 2 } },
+      cachedGrowthBookFeaturesAt: 2,
+      projects: {
+        "/Users/someone/project": {
+          ...BASE_CLAUDE_JSON.projects["/Users/someone/project"],
+          history: [{ display: "new prompt" }],
+        },
+      },
+    }, null, 2));
+    assertRealConfigsUnchanged(before, home);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("a change to user-scope mcpServers in ~/.claude.json is sterile drift", () => {
+  const home = fixtureHome(BASE_CLAUDE_JSON);
+  try {
+    const before = fingerprintRealConfigs(home);
+    writeFileSync(join(home, ".claude.json"), JSON.stringify({
+      ...BASE_CLAUDE_JSON,
+      mcpServers: { ...BASE_CLAUDE_JSON.mcpServers, leaked: { command: "leak" } },
+    }, null, 2));
+    assert.throws(() => assertRealConfigsUnchanged(before, home), /\.claude\.json/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("a change to a project-scope mcpServers entry in ~/.claude.json is sterile drift", () => {
+  const home = fixtureHome(BASE_CLAUDE_JSON);
+  try {
+    const before = fingerprintRealConfigs(home);
+    writeFileSync(join(home, ".claude.json"), JSON.stringify({
+      ...BASE_CLAUDE_JSON,
+      projects: {
+        "/Users/someone/project": {
+          ...BASE_CLAUDE_JSON.projects["/Users/someone/project"],
+          mcpServers: { "local-server": { command: "node" }, leaked: { command: "leak" } },
+        },
+      },
+    }, null, 2));
+    assert.throws(() => assertRealConfigsUnchanged(before, home), /\.claude\.json/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("an unparseable ~/.claude.json still trips the guard on content change", () => {
+  const home = fixtureHome(BASE_CLAUDE_JSON);
+  try {
+    writeFileSync(join(home, ".claude.json"), "{ not json");
+    const before = fingerprintRealConfigs(home);
+    writeFileSync(join(home, ".claude.json"), "{ still not json, but different");
+    assert.throws(() => assertRealConfigsUnchanged(before, home), /\.claude\.json/);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
 });

@@ -4,6 +4,10 @@ All notable changes to Construct are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+
+- `tests/helpers/sterile-host-env.mjs`: the suite-level sterility guard fingerprinted the real `~/.claude.json` by whole-file content hash, so `npm test` ended with a false `Sterile drift — real host config changed: ~/.claude.json` whenever any live Claude session (the Claude Code session the developer ran the suite from, or the desktop app) rewrote its own runtime telemetry mid-run — attribution traced every drift to `pluginUsage.*` counters and `cachedGrowthBookFeaturesAt`, never to `mcpServers`, and the file changed even in windows with zero tests running. The fingerprint now covers only the MCP surface Construct manages there — top-level `mcpServers` plus each project's `mcpServers`, canonicalized by key order — the same volatility trim the guard already applies to `ollama list` (model names only). Detection power is unchanged: a leak into user- or project-scope MCP config still fails the run, and an unparseable file falls back to the content hash. Regression tests cover telemetry churn (no drift), both mcpServers scopes (drift), and the unparseable fallback.
+
 ## [1.5.3] - 2026-07-09
 
 ### Fixed
