@@ -1,23 +1,23 @@
 {
   "version": 1,
-  "generatedAt": "2026-07-09T15:50:36.767Z",
+  "generatedAt": "2026-07-10T12:07:09.116Z",
   "generator": "node scripts/generate-test-corpus-inventory.mjs",
   "summary": {
-    "testFiles": 827,
+    "testFiles": 828,
     "topLevelTestFiles": 356,
-    "nestedTestFiles": 471,
+    "nestedTestFiles": 472,
     "skippedFiles": 0,
     "capabilityMarkedFiles": 46,
     "byLayer": {
       "unit": 562,
-      "functional": 217,
+      "functional": 218,
       "visual": 12,
       "live-provider": 2,
       "integration": 34
     },
     "byCategory": {
       "unit": 499,
-      "functional": 217,
+      "functional": 218,
       "visual": 12,
       "structural-guard": 19,
       "contract-subsystem": 44,
@@ -3857,6 +3857,14 @@
       "capabilities": [],
       "skipped": false,
       "maintainerNotes": "tests/functional/state-root-footprint.functional.test.mjs"
+    },
+    {
+      "path": "tests/functional/state-root-toolkit-isolation.functional.test.mjs",
+      "layer": "functional",
+      "category": "functional",
+      "capabilities": [],
+      "skipped": false,
+      "maintainerNotes": "tests/functional/state-root-toolkit-isolation.functional.test.mjs"
     },
     {
       "path": "tests/functional/surface-smoke-matrix.functional.test.mjs",

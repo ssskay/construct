@@ -30,6 +30,13 @@ config.env
 embed.yaml
 /runtime/
 
+# Belt-and-suspenders for ADR-0066 state leakage: machine-scoped heavy state
+# (~/.construct/projects/<key>/, ~/.construct/runtime/) must never resolve into
+# the working tree, but a process run with a repo-pointing HOME/CX_TOOLKIT_DIR
+# once dropped projects/<key>/lancedb at the repo root. Keep any recurrence out
+# of git status while lib/state-root.mjs guarantees the real fix.
+/projects/
+
 # plan.md is a working session document, not durable repo state. The Construct
 # init flow still creates it locally for downstream projects; this rule keeps
 # the construct repo itself from accumulating session-specific plan content.

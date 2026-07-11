@@ -45,11 +45,21 @@ function pinHome(cwd) {
 
 const MODEL = 'anthropic/claude-sonnet-4-6';
 const ORCH_REQUEST = { request: 'design and implement a new authentication architecture', file_count: 20, module_count: 6, wait: true, worker_backend: 'inline' };
+
+// HOME/USERPROFILE must never point at the repo: anything downstream that
+// resolves user-scoped state from this bag — or from a child spawned with it —
+// writes ~/.construct-shaped state into the working tree (this is exactly how
+// a stray <repo>/projects/<key>/lancedb appeared during a suite run). A
+// disposable home keeps those writes in tmp; CX_TOOLKIT_DIR stays on the repo
+// because it only locates toolkit assets, never durable state.
+const ENV_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'cx-status-path-home-'));
+test.after(() => fs.rmSync(ENV_HOME, { recursive: true, force: true }));
+
 const ENV = {
   ...process.env,
   CX_TOOLKIT_DIR: REPO_ROOT,
-  HOME: REPO_ROOT,
-  USERPROFILE: REPO_ROOT,
+  HOME: ENV_HOME,
+  USERPROFILE: ENV_HOME,
   OPENROUTER_API_KEY: '',
   ANTHROPIC_API_KEY: '',
   CX_MODEL_REASONING: MODEL,
@@ -61,8 +71,8 @@ function degradedEnv() {
   return {
     ...process.env,
     CX_TOOLKIT_DIR: REPO_ROOT,
-    HOME: REPO_ROOT,
-    USERPROFILE: REPO_ROOT,
+    HOME: ENV_HOME,
+    USERPROFILE: ENV_HOME,
     OPENROUTER_API_KEY: '',
     ANTHROPIC_API_KEY: '',
     CX_MODEL_REASONING: '',

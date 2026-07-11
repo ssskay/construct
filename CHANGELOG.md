@@ -4,6 +4,10 @@ All notable changes to Construct are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+
+- `lib/state-root.mjs`: machine-scoped heavy state (ADR-0066 — per-project `projects/<key>/` traces, observations, and the LanceDB vector index; shared `runtime/`) resolved its base from `constructDir()`, so any process carrying `CX_TOOLKIT_DIR` accumulated durable state inside the toolkit install root — `node_modules/@geraldmaron/construct/projects/` on a managed install (wiped on every upgrade; every managed MCP entry sets `CX_TOOLKIT_DIR`), or the checkout working tree on a dev/dogfood topology (observed 2026-07-10 as a stray `<repo>/projects/<key>/lancedb/` polluting `git status`, written by a test run whose env pinned `CX_TOOLKIT_DIR`/`HOME` to the repo root). State now anchors to the user home (`homeDir()`, so `CX_HOME_OVERRIDE` still relocates it for tests); `CX_TOOLKIT_DIR` is once again purely a toolkit-asset locator, and the default `~/.construct/…` layout is unchanged. Regression pinned by `tests/functional/state-root-toolkit-isolation.functional.test.mjs`; `tests/audit/f09-orchestration/status-path-truthfulness.test.mjs` no longer points `HOME`/`USERPROFILE` at the repo root; a root-anchored `/projects/` line in `.gitignore` keeps any recurrence out of `git status`.
+
 ## [1.5.3] - 2026-07-09
 
 ### Fixed
