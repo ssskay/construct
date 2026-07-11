@@ -7,9 +7,17 @@
  * dispatch from running.
  */
 
-import { describe, it, mock } from 'node:test';
+import { describe, it, mock, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Broker, PolicyDenied, isBrokered } from '../lib/mcp/broker.mjs';
+import { pinDoctorRoot } from './helpers/doctor-root.mjs';
+
+// The broker's default auditRecorder appends to the audit trail under
+// CONSTRUCT_DOCTOR_ROOT (lib/audit-trail.mjs); pinned to a tmpdir so brokered
+// calls in the suite never write the real user's audit chain.
+
+const doctorPin = pinDoctorRoot('cx-broker-dispatch-doctor-');
+after(() => doctorPin.restore());
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -25,6 +25,14 @@ import { Broker, BudgetExceeded } from '../../lib/mcp/broker.mjs';
 import {
   ConsumptionBudgetStore, resolveDefaultBudget, DEFAULT_BUDGETS_BY_MODE,
 } from '../../lib/policy/consumption-budget.mjs';
+import { pinDoctorRoot } from '../helpers/doctor-root.mjs';
+
+// The broker's default auditRecorder appends to the audit trail under
+// CONSTRUCT_DOCTOR_ROOT (lib/audit-trail.mjs); pinned to a tmpdir so brokered
+// calls in the suite never write the real user's audit chain.
+
+const doctorPin = pinDoctorRoot('cx-consumption-doctor-');
+after(() => doctorPin.restore());
 
 const tmpDirs = [];
 after(() => {

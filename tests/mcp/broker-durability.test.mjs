@@ -19,6 +19,14 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { Broker, BrokerStore, RateLimited } from '../../lib/mcp/broker.mjs';
+import { pinDoctorRoot } from '../helpers/doctor-root.mjs';
+
+// The broker's default auditRecorder appends to the audit trail under
+// CONSTRUCT_DOCTOR_ROOT (lib/audit-trail.mjs); pinned to a tmpdir so brokered
+// calls in the suite never write the real user's audit chain.
+
+const doctorPin = pinDoctorRoot('cx-durability-doctor-');
+after(() => doctorPin.restore());
 
 const tmpDirs = [];
 after(() => {

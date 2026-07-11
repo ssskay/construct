@@ -42,8 +42,14 @@ shares one process environment).
   resolve project-scoped storage (`exportTurns`, `resolveProjectScopedPath`, etc.).
 - Create a Construct project marker (`.cx/` or `package.json` + `.cx/`) in the
   fixture when exercising project-scoped commands.
+- In-process code that writes through the machine-scoped state axis
+  (`lib/config/xdg.mjs` `doctorRoot`) — the canonical case is a real `Broker`,
+  whose default `auditRecorder` appends to the audit trail — needs
+  `pinDoctorRoot()` from `tests/helpers/doctor-root.mjs` at the top of the file
+  (restore in `after()`), or an injected `auditRecorder`.
 - `tests/test-isolation.test.mjs` flags files that assign `HOME` without an in-file
-  restore signal.
+  restore signal, and files that construct a `Broker` without an `auditRecorder`
+  injection or a doctor-root pin.
 
 ### Inbound-env determinism
 

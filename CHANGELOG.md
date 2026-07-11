@@ -4,6 +4,10 @@ All notable changes to Construct are documented here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+
+- Broker test suites no longer write the real user's audit trail. Seven suites (`tests/functional/mcp-broker-enforcement.functional.test.mjs`, `tests/mcp-broker.test.mjs`, `tests/mcp-broker-dispatch.test.mjs`, `tests/security/consumption-limits.test.mjs`, `tests/mcp/approval-flow.test.mjs`, `tests/mcp/broker-durability.test.mjs`, `tests/mcp/enforcement-proof.functional.test.mjs`) constructed a real `Broker` without injecting `auditRecorder`, so every deny/approve/budget decision appended a `test-policy` line to the developer's real `~/.local/state/construct/audit-trail.jsonl` — 106 leaked lines per full run, violating the isolation contract in `tests/functional/README.md`. Two-sided cause: the broker's default recorder is `appendAuditRecord`, and `lib/audit-trail.mjs` resolved its default file from `doctorRoot()` at module import time, so even a suite that pinned `CONSTRUCT_DOCTOR_ROOT`/`CX_HOME_OVERRIDE` after imports could not redirect the write. `lib/audit-trail.mjs` now resolves the default path per call (behavior-identical for CLI/hook processes, whose env is stable), a new `tests/helpers/doctor-root.mjs` `pinDoctorRoot()` pins `CONSTRUCT_DOCTOR_ROOT` to a mkdtemp fixture with env restore in `after()`, and all seven suites pin it at the top of the file. The named enforcement functional test additionally asserts the deny/approve audit records land under the pinned root (the broker audit-trail write previously had no durable-artifact assertion at all). `tests/test-isolation.test.mjs` gains a static regression guard: any test file constructing `new Broker(` must inject `auditRecorder` or pin the doctor root — static rather than a before/after fingerprint of the real file, because live sessions on a developer machine append to the real audit trail concurrently and a runtime fingerprint would flap. Verified: re-running all broker suites plus every `lib/audit-trail.mjs` consumer suite adds zero lines to the real audit file.
+
 ## [1.5.3] - 2026-07-09
 
 ### Fixed

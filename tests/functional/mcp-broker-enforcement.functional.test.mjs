@@ -19,16 +19,23 @@ import { join } from 'node:path';
 import { Broker, isBrokered } from '../../lib/mcp/broker.mjs';
 import { traceDir as resolveTraceDir } from '../../lib/worker/trace.mjs';
 import { rmTmpDir } from '../helpers/cleanup.mjs';
+import { pinDoctorRoot } from '../helpers/doctor-root.mjs';
 
 // Broker trace writes resolve through the machine-scoped state root
 // (ADR-0066) via lib/worker/trace.mjs#traceDir, keyed off process.env.CX_HOME_OVERRIDE
 // directly rather than any per-call env option, so CX_HOME_OVERRIDE is pinned
 // for the whole file to keep them off the real developer machine's $HOME.
+// The broker's default auditRecorder writes a second durable artifact — the
+// audit-trail JSONL under CONSTRUCT_DOCTOR_ROOT (lib/audit-trail.mjs) — so
+// that axis is pinned too; the deny/approve tests assert the records land
+// under the pinned root, never the real ~/.local/state/construct.
 
 const homeOverride = mkdtempSync(join(tmpdir(), 'cx-broker-enforcement-home-'));
 const prevHomeOverride = process.env.CX_HOME_OVERRIDE;
 process.env.CX_HOME_OVERRIDE = homeOverride;
+const doctorPin = pinDoctorRoot('cx-broker-enforcement-doctor-');
 after(() => {
+  doctorPin.restore();
   try { rmTmpDir(homeOverride); } catch {}
   if (prevHomeOverride === undefined) delete process.env.CX_HOME_OVERRIDE;
   else process.env.CX_HOME_OVERRIDE = prevHomeOverride;
@@ -37,6 +44,14 @@ after(() => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// Read the audit-trail records the broker's default auditRecorder appended
+// under the pinned doctor root.
+function readAuditLines() {
+  const file = join(doctorPin.root, 'audit-trail.jsonl');
+  if (!existsSync(file)) return [];
+  return readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+}
 
 // Collect all trace lines written for an isolated rootDir, resolved through
 // the same machine-scoped state root the broker itself writes to.
@@ -123,6 +138,12 @@ describe('broker enforcement — deny', () => {
         toolCalled[0].metadata.reason.includes('denied'),
         `trace reason should mention "denied", got: ${toolCalled[0].metadata.reason}`,
       );
+
+      // The default auditRecorder's durable record must land under the pinned
+      // doctor root, never the real user state dir.
+      const audits = readAuditLines().filter((r) => r.agent === 'mcp-broker' && r.outcome === 'denied');
+      assert.ok(audits.length >= 1, 'broker must append a denied audit-trail record under the pinned doctor root');
+      assert.equal(audits[0].source, 'test-policy');
     } finally {
       rmTmpDir(localRoot);
     }
@@ -149,6 +170,9 @@ describe('broker enforcement — approve', () => {
       const toolCalled = traces.filter((e) => e.eventType === 'tool.called');
       assert.ok(toolCalled.length >= 1, 'broker must emit a tool.called trace event on approval');
       assert.equal(toolCalled[0].metadata.allowed, true, 'trace event must record allowed=true');
+
+      const audits = readAuditLines().filter((r) => r.agent === 'mcp-broker' && r.outcome === 'allowed');
+      assert.ok(audits.length >= 1, 'broker must append an allowed audit-trail record under the pinned doctor root');
     } finally {
       rmTmpDir(localRoot);
     }
